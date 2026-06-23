@@ -5,8 +5,11 @@
 *.xcodeproj/
 
 # Xcode build output / user state
+# NOTE: build into build.noindex/ — the .noindex suffix keeps Spotlight from
+# indexing the produced .app (otherwise dev builds show up as duplicate apps).
 DerivedData/
 build/
+build.noindex/
 *.xcuserstate
 xcuserdata/
 .swiftpm/
