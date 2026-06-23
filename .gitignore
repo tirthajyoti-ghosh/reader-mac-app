@@ -14,3 +14,4 @@ xcuserdata/
 # Vendoring scratch (the resolved libs/fonts in WebResources/ ARE committed)
 node_modules/
 scripts/.vendor-tmp/
+scripts/.iconset-tmp/

@@ -27,6 +27,7 @@ targets:
       - path: App
       - path: WebResources
         type: folder            # folder reference → ./vendor and ./fonts survive intact
+      - path: Reader.icns       # app icon (regenerate with scripts/make-icon.sh)
     settings:
       base:
         PRODUCT_NAME: Reader
