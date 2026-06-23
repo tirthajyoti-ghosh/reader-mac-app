@@ -6,7 +6,10 @@ struct ContentView: View {
     var body: some View {
         let p = model.palette
         HStack(spacing: 0) {
-            Sidebar()
+            if model.sidebarVisible {
+                Sidebar()
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
 
             VStack(spacing: 0) {
                 TopBar()
@@ -30,5 +33,6 @@ struct ContentView: View {
         .background(p.bg)
         .preferredColorScheme(model.theme.colorScheme)
         .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.22), value: model.sidebarVisible)
     }
 }

@@ -1,10 +1,10 @@
 import SwiftUI
+import AppKit
 
-/// Floating ⌘F find bar, top-right of the reading pane. Drives the native
-/// `WKWebView.find(_:configuration:)` (wrap-around) and shows an "n / m" count.
+/// Floating ⌘F find bar, top-right of the reading pane. Drives the renderer's JS
+/// find engine (highlights all matches, cycles the current one) and shows "n / m".
 struct FindBar: View {
     @EnvironmentObject var model: AppModel
-    @FocusState private var focused: Bool
 
     var body: some View {
         let p = model.palette
@@ -13,16 +13,17 @@ struct FindBar: View {
                 .font(.system(size: 12))
                 .foregroundColor(p.muted)
 
-            TextField("Find in document", text: $model.findQuery)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundColor(p.text)
-                .frame(width: 180)
-                .focused($focused)
-                .onSubmit { model.runFind(forward: true) }
-                .onChange(of: model.findQuery) { _, _ in
-                    model.runFind(forward: true, isNewQuery: true)
-                }
+            FindTextField(
+                text: $model.findQuery,
+                focusToken: model.findFocusToken,
+                textColor: NSColor(p.text),
+                placeholderColor: NSColor(p.muted),
+                onChange: { model.findQueryChanged() },
+                onEnter: { model.runFind(forward: true) },
+                onShiftEnter: { model.runFind(forward: false) },
+                onEscape: { model.hideFind() }
+            )
+            .frame(width: 190, height: 18)
 
             if !model.findQuery.isEmpty {
                 Text("\(model.findIndex) / \(model.findCount)")
@@ -38,24 +39,90 @@ struct FindBar: View {
         .padding(.leading, 12)
         .padding(.trailing, 8)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8).fill(p.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(focused ? p.accent : p.border, lineWidth: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(p.accentSoft, lineWidth: focused ? 3 : 0)
-                .padding(-1.5)
-        )
+        .background(RoundedRectangle(cornerRadius: 8).fill(p.surface))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(p.accent, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(p.accentSoft, lineWidth: 3).padding(-1.5))
         .shadow(color: .black.opacity(0.28), radius: 14, y: 8)
         .padding(.top, 12)
         .padding(.trailing, 24)
-        .onAppear { focused = true }
-        .onChange(of: model.findFocusToken) { _, _ in focused = true }
-        .onExitCommand { model.hideFind() }
+    }
+}
+
+/// AppKit-backed text field so we get reliable focus + select-all when the bar
+/// opens, and proper Enter / Shift-Enter / Esc handling.
+private struct FindTextField: NSViewRepresentable {
+    @Binding var text: String
+    var focusToken: Int
+    var textColor: NSColor
+    var placeholderColor: NSColor
+    var onChange: () -> Void
+    var onEnter: () -> Void
+    var onShiftEnter: () -> Void
+    var onEscape: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let tf = NSTextField()
+        tf.delegate = context.coordinator
+        tf.isBordered = false
+        tf.drawsBackground = false
+        tf.focusRingType = .none
+        tf.font = .systemFont(ofSize: 13)
+        tf.textColor = textColor
+        tf.cell?.usesSingleLineMode = true
+        tf.cell?.isScrollable = true
+        tf.lineBreakMode = .byTruncatingTail
+        tf.stringValue = text
+        tf.placeholderAttributedString = placeholder()
+        return tf
+    }
+
+    func updateNSView(_ tf: NSTextField, context: Context) {
+        context.coordinator.parent = self
+        if tf.stringValue != text { tf.stringValue = text }
+        tf.textColor = textColor
+        tf.placeholderAttributedString = placeholder()
+        if context.coordinator.lastFocusToken != focusToken {
+            context.coordinator.lastFocusToken = focusToken
+            DispatchQueue.main.async {
+                // selectText makes the field first responder AND selects all text,
+                // so typing immediately replaces any existing query.
+                tf.selectText(nil)
+            }
+        }
+    }
+
+    private func placeholder() -> NSAttributedString {
+        NSAttributedString(string: "Find in document",
+                           attributes: [.foregroundColor: placeholderColor,
+                                        .font: NSFont.systemFont(ofSize: 13)])
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: FindTextField
+        var lastFocusToken = Int.min
+        init(_ p: FindTextField) { parent = p }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let tf = obj.object as? NSTextField else { return }
+            parent.text = tf.stringValue
+            parent.onChange()
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            switch selector {
+            case #selector(NSResponder.insertNewline(_:)):
+                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true { parent.onShiftEnter() }
+                else { parent.onEnter() }
+                return true
+            case #selector(NSResponder.cancelOperation(_:)):   // Esc
+                parent.onEscape()
+                return true
+            default:
+                return false
+            }
+        }
     }
 }
 

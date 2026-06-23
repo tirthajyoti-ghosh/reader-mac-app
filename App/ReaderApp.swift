@@ -27,6 +27,8 @@ struct ReaderApp: App {
             }
 
             CommandMenu("View") {
+                Button("Toggle Sidebar") { model.toggleSidebar() }
+                    .keyboardShortcut("\\", modifiers: .command)
                 Button("Toggle Light / Dark") { model.toggleTheme() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Button("Refresh Sidebar") { model.reloadSidebar() }

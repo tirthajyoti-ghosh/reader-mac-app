@@ -7,6 +7,14 @@ struct TopBar: View {
     var body: some View {
         let p = model.palette
         HStack(spacing: 0) {
+            // Reserve the traffic-light strip when the sidebar is collapsed.
+            if !model.sidebarVisible {
+                Color.clear.frame(width: 70)
+            }
+            IconButton(system: "sidebar.left", help: "Toggle sidebar") { model.toggleSidebar() }
+                .padding(.leading, model.sidebarVisible ? 8 : 0)
+                .padding(.trailing, 2)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 0) {
                     ForEach(model.documents) { doc in

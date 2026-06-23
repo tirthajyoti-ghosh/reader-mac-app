@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
     @Published var theme: AppTheme
 
     // Sidebar
+    @Published var sidebarVisible = true
     @Published var sidebarFolder: URL
     @Published var sidebarFiles: [FileItem] = []
 
@@ -108,6 +109,10 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(theme.rawValue, forKey: "theme")
     }
 
+    func toggleSidebar() {
+        sidebarVisible.toggle()
+    }
+
     // MARK: - Sidebar
 
     var sidebarFolderName: String {
@@ -166,39 +171,43 @@ final class AppModel: ObservableObject {
     // MARK: - Find
 
     func showFind() {
-        findVisible = true
-        findFocusToken &+= 1
-        if !findQuery.isEmpty { runFind(forward: true, isNewQuery: true) }
+        if findVisible {
+            runFind(forward: true)          // ⌘F again while open → cycle to next match
+        } else {
+            findVisible = true
+            findFocusToken &+= 1            // focus the field + select existing text
+            if !findQuery.isEmpty { runFind(forward: true, isNewQuery: true) }
+        }
     }
 
     func hideFind() {
         findVisible = false
+        activeWebView?.evaluateJavaScript("window.__clearFind && window.__clearFind()")
     }
 
+    func findQueryChanged() {
+        runFind(forward: true, isNewQuery: true)
+    }
+
+    /// Drives the renderer's JS find engine (highlights all matches + cycles the
+    /// current one). isNewQuery → highlight from scratch; else next/prev.
     func runFind(forward: Bool, isNewQuery: Bool = false) {
         guard let wv = activeWebView else { return }
         let q = findQuery
-        guard !q.isEmpty else { findCount = 0; findIndex = 0; return }
-
-        wv.evaluateJavaScript("window.__matchCount(\(jsStringLiteral(q)))") { [weak self] res, _ in
-            guard let self else { return }
-            let n = (res as? Int) ?? Int((res as? Double) ?? 0)
-            self.findCount = n
-            if isNewQuery {
-                self.findIndex = n > 0 ? 1 : 0
-            } else if n > 0 {
-                if forward { self.findIndex = self.findIndex >= n ? 1 : self.findIndex + 1 }
-                else       { self.findIndex = self.findIndex <= 1 ? n : self.findIndex - 1 }
-            } else {
-                self.findIndex = 0
-            }
+        guard !q.isEmpty else {
+            findCount = 0; findIndex = 0
+            wv.evaluateJavaScript("window.__clearFind && window.__clearFind()")
+            return
         }
-
-        let cfg = WKFindConfiguration()
-        cfg.backwards = !forward
-        cfg.caseSensitive = false
-        cfg.wraps = true
-        wv.find(q, configuration: cfg, completionHandler: { _ in })
+        let js: String
+        if isNewQuery   { js = "window.__find(\(jsStringLiteral(q)))" }
+        else if forward { js = "window.__findNext()" }
+        else            { js = "window.__findPrev()" }
+        wv.evaluateJavaScript(js) { [weak self] res, _ in
+            guard let self, let d = res as? [String: Any] else { return }
+            self.findCount = (d["count"] as? Int) ?? Int((d["count"] as? Double) ?? 0)
+            self.findIndex = (d["index"] as? Int) ?? Int((d["index"] as? Double) ?? 0)
+        }
     }
 }
 

@@ -172,8 +172,12 @@
 
   /* ---- public API ---------------------------------------------------------- */
   var lastMarkdown = "";
+  var findHits = [];
+  var findPos = -1;
 
   window.__render = function (text) {
+    findHits = [];           // doc is replaced below; any old marks go with it
+    findPos = -1;
     lastMarkdown = typeof text === "string" ? text : "";
     doc.innerHTML = md.render(lastMarkdown);
     transformCallouts(doc);
@@ -189,15 +193,87 @@
     reRenderMermaid(); // Mermaid bakes colors into the SVG, so re-run on theme flip
   };
 
-  window.__matchCount = function (q) {
-    if (!q) return 0;
-    var hay = (doc.textContent || "").toLowerCase();
-    var needle = String(q).toLowerCase();
+  /* ---- find: highlight every match, cycle the current one ------------------ */
+  function clearFind() {
+    if (findHits.length) {
+      var parents = [];
+      findHits.forEach(function (m) {
+        var p = m.parentNode;
+        if (!p) return;
+        p.replaceChild(document.createTextNode(m.textContent), m);
+        if (parents.indexOf(p) === -1) parents.push(p);
+      });
+      parents.forEach(function (p) { p.normalize(); });
+    }
+    findHits = [];
+    findPos = -1;
+  }
+
+  function highlightAll(query) {
+    clearFind();
+    var needle = (query || "").toLowerCase();
     if (!needle) return 0;
-    var n = 0, i = 0;
-    while ((i = hay.indexOf(needle, i)) !== -1) { n++; i += needle.length; }
-    return n;
+    var walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        if (!node.nodeValue || !/\S/.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+        var p = node.parentNode;
+        while (p && p !== doc) {
+          var tag = p.nodeName;
+          if (tag === "SCRIPT" || tag === "STYLE" || tag === "MARK") return NodeFilter.FILTER_REJECT;
+          p = p.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    nodes.forEach(function (node) {
+      var text = node.nodeValue, lower = text.toLowerCase();
+      var idx = lower.indexOf(needle);
+      if (idx === -1) return;
+      var frag = document.createDocumentFragment(), last = 0;
+      while (idx !== -1) {
+        if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
+        var mark = document.createElement("mark");
+        mark.className = "find-hit";
+        mark.textContent = text.slice(idx, idx + needle.length);
+        frag.appendChild(mark);
+        findHits.push(mark);
+        last = idx + needle.length;
+        idx = lower.indexOf(needle, last);
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+    return findHits.length;
+  }
+
+  function setCurrent(i) {
+    if (!findHits.length) return;
+    if (findPos >= 0 && findHits[findPos]) findHits[findPos].classList.remove("current");
+    findPos = ((i % findHits.length) + findHits.length) % findHits.length;
+    var cur = findHits[findPos];
+    cur.classList.add("current");
+    cur.scrollIntoView({ block: "center", inline: "nearest" });
+  }
+
+  window.__find = function (query) {
+    var count = highlightAll(query);
+    if (count > 0) setCurrent(0);
+    return { count: count, index: count > 0 ? 1 : 0 };
   };
+  window.__findNext = function () {
+    if (!findHits.length) return { count: 0, index: 0 };
+    setCurrent(findPos + 1);
+    return { count: findHits.length, index: findPos + 1 };
+  };
+  window.__findPrev = function () {
+    if (!findHits.length) return { count: 0, index: 0 };
+    setCurrent(findPos - 1);
+    return { count: findHits.length, index: findPos + 1 };
+  };
+  window.__clearFind = function () { clearFind(); };
 
   window.__ready = true;
 })();
