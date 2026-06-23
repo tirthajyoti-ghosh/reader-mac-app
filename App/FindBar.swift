@@ -26,7 +26,7 @@ struct FindBar: View {
             .frame(width: 190, height: 18)
 
             if !model.findQuery.isEmpty {
-                Text("\(model.findIndex) / \(model.findCount)")
+                Text(findCountLabel)
                     .font(.system(size: 12))
                     .monospacedDigit()
                     .foregroundColor(p.muted)
@@ -45,6 +45,13 @@ struct FindBar: View {
         .shadow(color: .black.opacity(0.28), radius: 14, y: 8)
         .padding(.top, 12)
         .padding(.trailing, 24)
+    }
+
+    /// Before navigating: just the match count. While cycling: "i / N".
+    private var findCountLabel: String {
+        if model.findCount == 0 { return "0/0" }
+        if model.findIndex == 0 { return "\(model.findCount)" }
+        return "\(model.findIndex) / \(model.findCount)"
     }
 }
 

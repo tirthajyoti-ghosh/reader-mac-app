@@ -17,7 +17,8 @@ struct Sidebar: View {
                     .foregroundColor(p.muted)
                     .lineLimit(1)
                 Spacer(minLength: 6)
-                IconButton(system: "folder", help: "Pick folder") { model.pickFolder() }
+                IconButton(system: "doc.badge.plus", help: "Open file…") { model.openWithPanel() }
+                IconButton(system: "folder", help: "Choose folder…") { model.pickFolder() }
                 IconButton(system: "arrow.clockwise", help: "Refresh") { model.reloadSidebar() }
             }
             .padding(.horizontal, 16)
@@ -27,8 +28,20 @@ struct Sidebar: View {
             // File list
             ScrollView {
                 LazyVStack(spacing: 0) {
+                    let recents = model.recentFiles
+                    if !recents.isEmpty {
+                        SectionLabel(text: "Recent", palette: p)
+                        ForEach(recents, id: \.self) { url in
+                            FileRow(item: fileItem(url), selected: isSelectedURL(url), palette: p)
+                                .onTapGesture { model.open(url) }
+                        }
+                        Rectangle().fill(p.border)
+                            .frame(height: 1)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                    }
                     ForEach(model.sidebarFiles) { item in
-                        FileRow(item: item, selected: isSelected(item), palette: p)
+                        FileRow(item: item, selected: isSelectedURL(item.url), palette: p)
                             .onTapGesture { model.open(item.url) }
                     }
                 }
@@ -56,10 +69,31 @@ struct Sidebar: View {
         .overlay(p.border.frame(width: 1), alignment: .trailing)
     }
 
-    private func isSelected(_ item: FileItem) -> Bool {
+    private func fileItem(_ url: URL) -> FileItem {
+        let m = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+        return FileItem(url: url, modified: m)
+    }
+
+    private func isSelectedURL(_ url: URL) -> Bool {
         guard let s = model.selectedDocument?.url else { return false }
         return s.resolvingSymlinksInPath().standardizedFileURL
-            == item.url.resolvingSymlinksInPath().standardizedFileURL
+            == url.resolvingSymlinksInPath().standardizedFileURL
+    }
+}
+
+struct SectionLabel: View {
+    let text: String
+    let palette: Palette
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 10, weight: .bold))
+            .tracking(0.8)
+            .foregroundColor(palette.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 3)
     }
 }
 

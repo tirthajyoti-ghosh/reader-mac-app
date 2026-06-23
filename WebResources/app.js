@@ -259,9 +259,10 @@
   }
 
   window.__find = function (query) {
+    // Highlight every match but don't select one yet — Enter / ⌘F navigates,
+    // first to the opening match, then cycling through the rest.
     var count = highlightAll(query);
-    if (count > 0) setCurrent(0);
-    return { count: count, index: count > 0 ? 1 : 0 };
+    return { count: count, index: 0 };
   };
   window.__findNext = function () {
     if (!findHits.length) return { count: 0, index: 0 };

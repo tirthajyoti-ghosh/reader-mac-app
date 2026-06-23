@@ -21,6 +21,9 @@ final class AppModel: ObservableObject {
     @Published var sidebarFolder: URL
     @Published var sidebarFiles: [FileItem] = []
 
+    // Recently opened (persisted across launches; may point outside the watched folder)
+    @Published var recents: [URL] = []
+
     // Find bar
     @Published var findVisible = false
     @Published var findQuery = ""
@@ -44,6 +47,9 @@ final class AppModel: ObservableObject {
             self.sidebarFolder = FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent(".claude/plans", isDirectory: true)
         }
+        if let savedRecents = UserDefaults.standard.stringArray(forKey: "recents") {
+            self.recents = savedRecents.map { URL(fileURLWithPath: $0) }
+        }
         reloadSidebar()
         watchFolder()
     }
@@ -53,6 +59,7 @@ final class AppModel: ObservableObject {
     func open(_ urls: [URL]) { urls.forEach { open($0) } }
 
     func open(_ url: URL) {
+        addRecent(url)
         let key = url.standardizedFileURL.resolvingSymlinksInPath()
         if let existing = documents.first(where: {
             $0.url.standardizedFileURL.resolvingSymlinksInPath() == key
@@ -80,6 +87,21 @@ final class AppModel: ObservableObject {
             UTType.text
         ].compactMap { $0 }
         if panel.runModal() == .OK { open(panel.urls) }
+    }
+
+    // MARK: - Recents
+
+    /// Recently opened files that still exist, most-recent first.
+    var recentFiles: [URL] {
+        recents.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    private func addRecent(_ url: URL) {
+        let std = url.standardizedFileURL
+        recents.removeAll { $0.standardizedFileURL == std }
+        recents.insert(std, at: 0)
+        if recents.count > 12 { recents = Array(recents.prefix(12)) }
+        UserDefaults.standard.set(recents.map { $0.path }, forKey: "recents")
     }
 
     // MARK: - Tabs
