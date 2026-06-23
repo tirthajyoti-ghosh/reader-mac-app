@@ -356,6 +356,25 @@
   color: var(--bg);
 }
 
+/* ---- document path caption (above the H1, inside the reading column) ------- */
+.doc-path {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .01em;
+  color: var(--muted);
+  overflow: hidden;
+}
+.doc-path svg { flex: none; color: var(--muted); }
+/* middle-truncate: the directory shrinks/ellipsizes, the filename stays whole */
+.doc-path .p-dir  { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-path .p-name { flex: none; white-space: nowrap; }
+.doc-path.revealable { cursor: pointer; }
+.doc-path.revealable:hover { color: var(--text-2); }
+
 /* ============================================================================
    APP CHROME (system font) — sidebar, tabs, toolbar, find bar, empty state
    ============================================================================ */

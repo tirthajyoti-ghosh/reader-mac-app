@@ -36,8 +36,12 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             self.webView.loadFileURL(reader, allowingReadAccessTo: resources)
         }
 
-        // 2) inject theme + content, wait for the eval to return
-        let js = "window.__setTheme('\(theme)'); window.__render(\(jsLiteral(text))); true"
+        // 2) inject theme + content (with the home-collapsed path), await the eval
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let abs = url.path
+        let displayPath = abs == home ? "~"
+            : (abs.hasPrefix(home + "/") ? "~" + abs.dropFirst(home.count) : abs)
+        let js = "window.__setTheme('\(theme)'); window.__render(\(jsLiteral(text)), \(jsLiteral(displayPath))); true"
         _ = try? await webView.evaluateJavaScript(js)
 
         // 3) give Mermaid / KaTeX a beat to paint before the snapshot

@@ -20,6 +20,17 @@ final class Document: ObservableObject, Identifiable {
         }
     }
 
+    /// Absolute path with the home directory collapsed to "~".
+    var displayPath: String { Document.displayPath(for: url) }
+
+    static func displayPath(for url: URL) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let p = url.path
+        if p == home { return "~" }
+        if p.hasPrefix(home + "/") { return "~" + p.dropFirst(home.count) }
+        return p
+    }
+
     static func read(_ url: URL) -> String {
         if let s = try? String(contentsOf: url, encoding: .utf8) { return s }
         return (try? String(contentsOf: url)) ?? ""

@@ -175,11 +175,35 @@
   var findHits = [];
   var findPos = -1;
 
-  window.__render = function (text) {
+  // Document path caption — prepended above the first heading, inside .md.
+  function prependDocPath(path) {
+    if (!path) return;
+    var slash = path.lastIndexOf("/");
+    var dir = slash >= 0 ? path.slice(0, slash + 1) : "";
+    var name = slash >= 0 ? path.slice(slash + 1) : path;
+    var wrap = document.createElement("div");
+    wrap.className = "doc-path";
+    wrap.title = path;
+    wrap.innerHTML =
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>' +
+      '<span class="p-dir"></span><span class="p-name"></span>';
+    wrap.querySelector(".p-dir").textContent = dir;   // textContent → no HTML injection from paths
+    wrap.querySelector(".p-name").textContent = name;
+    // optional: click to reveal in Finder (app only; the handler is absent in Quick Look)
+    var mh = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.revealFile;
+    if (mh) {
+      wrap.classList.add("revealable");
+      wrap.addEventListener("click", function () { mh.postMessage(""); });
+    }
+    doc.insertBefore(wrap, doc.firstChild);
+  }
+
+  window.__render = function (text, path) {
     findHits = [];           // doc is replaced below; any old marks go with it
     findPos = -1;
     lastMarkdown = typeof text === "string" ? text : "";
     doc.innerHTML = md.render(lastMarkdown);
+    prependDocPath(path);
     transformCallouts(doc);
     transformTaskLists(doc);
     renderMath(doc);
@@ -220,6 +244,7 @@
         while (p && p !== doc) {
           var tag = p.nodeName;
           if (tag === "SCRIPT" || tag === "STYLE" || tag === "MARK") return NodeFilter.FILTER_REJECT;
+          if (p.classList && p.classList.contains("doc-path")) return NodeFilter.FILTER_REJECT;
           p = p.parentNode;
         }
         return NodeFilter.FILTER_ACCEPT;
