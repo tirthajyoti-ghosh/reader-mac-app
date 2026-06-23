@@ -3,7 +3,7 @@
 A calm, **read-only** Markdown viewer for macOS, plus a Quick Look preview
 extension that **shares the exact same renderer** — so an open tab and Finder's
 spacebar preview look identical. Styled to Claude Desktop's reading aesthetic:
-warm near-black canvas, Source Serif 4 reading face, a single clay accent, and a
+warm near-black canvas, Source Sans 3 reading face, a single clay accent, and a
 quiet reading-progress hairline.
 
 > Think *"Preview.app for Markdown, with Claude Desktop's reading aesthetic."*
@@ -12,7 +12,7 @@ quiet reading-progress hairline.
 
 ## Features
 
-- **Reads beautifully** — Source Serif 4 (Text optical) body, JetBrains Mono code,
+- **Reads beautifully** — Source Sans 3 body + headings, JetBrains Mono code,
   the exact extracted Claude-Desktop color tokens, light + dark.
 - **Full Markdown** — GFM tables, task lists, strikethrough, autolinks; fenced
   code with syntax highlighting; blockquotes; GitHub **callouts**
@@ -101,16 +101,12 @@ Then select a `.md` in Finder and press **space**.
 
 ## Fonts — swap or license
 
-The reading face is **Source Serif 4** and code is **JetBrains Mono** — both OFL,
-bundled as `woff2` in `WebResources/fonts/` and declared via `@font-face` in
-`reader.html`. To swap, drop new `woff2` files in `fonts/` and update the
-`@font-face` blocks. Literata or Lora (both OFL) are drop-in reading-face swaps.
-
-> Claude Desktop's licensed reading face is **Anthropic Serif** (a Tiempos /
-> Copernicus-class transitional serif); Source Serif 4 is the closest free,
-> bundleable stand-in. If you license Anthropic Serif / Tiempos / Copernicus,
-> drop its `woff2` in `fonts/` and **prepend** its name to `--font` in
-> `design-tokens.css`.
+The reading face (body + headings) is **Source Sans 3** and code is **JetBrains
+Mono** — both OFL, bundled as `woff2` in `WebResources/fonts/` (the sans ships
+weights 400/600/700 + 400 italic) and declared via `@font-face` in `reader.html`.
+To swap the reading face, drop new `woff2` files in `fonts/`, update the
+`@font-face` blocks, and change `--font` in `design-tokens.css`. The pinned font
+packages live in `scripts/vendor.sh`.
 
 ## Sandboxing
 
@@ -134,6 +130,6 @@ and sign + notarize with a Developer ID.
 
 ## License
 
-Code: do as you like. Bundled fonts are OFL (Source Serif 4, JetBrains Mono);
+Code: do as you like. Bundled fonts are OFL (Source Sans 3, JetBrains Mono);
 bundled libraries keep their own licenses (markdown-it, highlight.js — MIT;
 Mermaid — MIT; KaTeX — MIT).

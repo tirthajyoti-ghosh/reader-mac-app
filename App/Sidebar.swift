@@ -31,7 +31,9 @@ struct Sidebar: View {
                     let recents = model.recentFiles
                     if !recents.isEmpty {
                         SectionLabel(text: "Recent", palette: p)
-                        ForEach(recents, id: \.self) { url in
+                        // index-based id: a recent file may also be in the folder list
+                        // below, and a duplicate URL id in one LazyVStack blanks a row.
+                        ForEach(Array(recents.enumerated()), id: \.offset) { _, url in
                             FileRow(item: fileItem(url), selected: isSelectedURL(url), palette: p)
                                 .onTapGesture { model.open(url) }
                         }
