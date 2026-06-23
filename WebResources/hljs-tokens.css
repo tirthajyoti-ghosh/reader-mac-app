@@ -1,0 +1,53 @@
+/* ============================================================================
+   highlight.js → Reader syntax palette
+   We ship NO third-party highlight.js theme (it would break the palette).
+   Instead we map highlight.js token classes onto the --syntax-* tokens defined
+   per-theme in design-tokens.css, so code coloring tracks light/dark exactly.
+   ============================================================================ */
+.md pre code.hljs { color: var(--text); background: none; }
+
+.md .hljs-comment,
+.md .hljs-quote                 { color: var(--syntax-comment); font-style: italic; }
+
+.md .hljs-keyword,
+.md .hljs-selector-tag,
+.md .hljs-literal,
+.md .hljs-doctag,
+.md .hljs-name,
+.md .hljs-type,
+.md .hljs-tag                   { color: var(--syntax-keyword); }
+
+.md .hljs-string,
+.md .hljs-regexp,
+.md .hljs-symbol,
+.md .hljs-char,
+.md .hljs-addition,
+.md .hljs-meta .hljs-string     { color: var(--syntax-string); }
+
+.md .hljs-number,
+.md .hljs-bullet                { color: var(--syntax-number); }
+
+.md .hljs-title,
+.md .hljs-title.function_,
+.md .hljs-title.class_,
+.md .hljs-built_in,
+.md .hljs-section,
+.md .hljs-selector-id,
+.md .hljs-selector-class        { color: var(--syntax-function); }
+
+.md .hljs-variable,
+.md .hljs-template-variable,
+.md .hljs-params,
+.md .hljs-attr,
+.md .hljs-attribute,
+.md .hljs-property              { color: var(--syntax-variable); }
+
+.md .hljs-punctuation,
+.md .hljs-operator,
+.md .hljs-subst,
+.md .hljs-meta                  { color: var(--syntax-punct); }
+
+.md .hljs-deletion              { color: var(--callout-caution); }
+.md .hljs-emphasis              { font-style: italic; }
+.md .hljs-strong                { font-weight: 700; }
+.md .hljs-link                  { color: var(--accent); }
