@@ -44,13 +44,13 @@
 
 /* ---- LIGHT ---------------------------------------------------------------- */
 :root[data-theme="light"] {
-  --bg:        #F8F8F6;   /* warm cream canvas              */
-  --surface:   #FFFFFF;   /* cards / composer              */
-  --code-bg:   #EFEEEB;   /* code blocks                   */
+  --bg:        #F4F1EA;   /* warm, soft paper cream         */
+  --surface:   #FBFAF5;   /* soft warm white (cards/sidebar)*/
+  --code-bg:   #EBE8E0;   /* recessed warm grey             */
   --text:      #121212;   /* primary text                  */
   --text-2:    #373734;   /* secondary text                */
   --muted:     #7B7974;   /* captions / list markers       */
-  --border:    #E7E6E1;   /* hairlines / dividers          */
+  --border:    #E3DFD5;   /* warm hairlines / dividers      */
   --accent:    #C6613F;   /* clay (emphasized)             */
   --accent-soft: rgba(198,97,63,.10);
   --accent-line: rgba(198,97,63,.38);
@@ -146,9 +146,9 @@
 .md {
   font-family: var(--font);
   color: var(--text);
-  max-width: var(--reading-measure);
-  margin: 0 auto;
-  padding: var(--sp-12) var(--sp-8) 96px;
+  max-width: none;            /* full-width reading panel … */
+  margin: 0;
+  padding: var(--sp-12) clamp(var(--sp-8), 5vw, 96px) 96px;  /* … with responsive side padding */
   font-size: var(--t-body-size);
   line-height: var(--t-body-lh);
   -webkit-font-smoothing: antialiased;
@@ -216,7 +216,7 @@
 .md .task-list > li::before { content: none; }
 .md .task-list input[type="checkbox"] { position: absolute; opacity: 0; }
 .md .task-list > li > .box {
-  position: absolute; left: 0; top: .18em;
+  position: absolute; left: 0; top: calc((1.75em - 18px) / 2);  /* center on the first text line */
   width: 18px; height: 18px; border-radius: 5px;
   border: 1.5px solid var(--border); background: transparent;
   display: inline-flex; align-items: center; justify-content: center;
