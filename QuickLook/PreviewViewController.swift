@@ -30,14 +30,21 @@ class PreviewViewController: NSViewController, QLPreviewingController {
     }
 
     func preparePreviewOfFile(at url: URL) async throws {
-        let text = await readBounded(url, ms: 300)            // never block on a slow/iCloud file
+        let text = await readBounded(url, ms: 700)            // never block forever on a slow/iCloud file
         let theme = isDarkAppearance() ? "dark" : "light"
         let displayPath = Self.collapseHome(url)
 
-        await awaitPageReady(ms: 400)                          // preloaded → usually instant
+        // Wait for the (preloaded) page to actually be ready — rendering before
+        // markdown-it loads would paint nothing. Resolves on didFinish/didFail
+        // (typically ~300ms); the cap is only a hang guard.
+        await awaitPageReady(ms: 1500)
 
         let js = "window.__setTheme('\(theme)'); window.__render(\(jsLiteral(text)), \(jsLiteral(displayPath))); true"
-        await evalBounded(js, ms: 300)                         // render + paint, capped
+        await evalBounded(js, ms: 700)
+
+        // Let WebKit lay out + paint before Quick Look captures the view, else it
+        // snapshots an empty layer.
+        try? await Task.sleep(nanoseconds: 300_000_000)
     }
 
     // MARK: - Bounded helpers
