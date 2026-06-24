@@ -30,7 +30,12 @@
     var info = (t.info || "").trim();
     var lang = info.split(/\s+/g)[0];
     if (lang === "mermaid") {
-      return '<div class="mermaid">' + escapeHtml(t.content) + "</div>";
+      // Authors write `\n` in node labels for line breaks, but Mermaid v11 only
+      // honours `<br/>` — so a literal `\n` renders as the characters "\n".
+      // Convert before escaping; Mermaid reads the div's textContent, so the
+      // escaped `&lt;br/&gt;` decodes back to `<br/>` and becomes a line break.
+      var src = t.content.replace(/\\n/g, "<br/>");
+      return '<div class="mermaid">' + escapeHtml(src) + "</div>";
     }
     var body;
     try {
