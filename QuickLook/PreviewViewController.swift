@@ -2,11 +2,16 @@ import Cocoa
 import Quartz
 import WebKit
 
-/// Quick Look preview: hosts a WKWebView loading the SAME bundled reader.html as
-/// the app. Designed to be snappy and to NEVER hang:
+/// Quick Look preview — hosts a WKWebView loading the SAME bundled reader.html as
+/// the app. Designed to be snappy and to never hang:
 ///  • the renderer is preloaded the moment the view is created (overlaps QL setup);
-///  • every step (file read, page load, render) is bounded by a short timeout;
-///  • the page-load wait resumes on navigation success OR failure.
+///  • every step (file read, page load, render) is bounded by a timeout;
+///  • the page-load wait resolves on navigation success OR failure;
+///  • a short settle lets WebKit paint before Quick Look captures the view.
+///
+/// NOTE: the QuickLook entitlements include `com.apple.security.network.client`
+/// — without it, WKWebView's networking process stalls in this sandboxed
+/// extension and a local file:// load never fires didFinish (blank preview).
 class PreviewViewController: NSViewController, QLPreviewingController {
 
     private var webView: WKWebView!
@@ -22,28 +27,26 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         container.addSubview(webView)
         self.view = container
 
-        // Preload the renderer right away so it's (usually) ready before QL asks
-        // us to preview a file.
+        // Preload the renderer right away so it's ready by the time QL asks us to
+        // preview a file.
         let resources = Self.resourcesURL
         webView.loadFileURL(resources.appendingPathComponent("reader.html"),
                             allowingReadAccessTo: resources)
     }
 
     func preparePreviewOfFile(at url: URL) async throws {
-        let text = await readBounded(url, ms: 700)            // never block forever on a slow/iCloud file
+        let text = await readBounded(url, ms: 700)
         let theme = isDarkAppearance() ? "dark" : "light"
         let displayPath = Self.collapseHome(url)
 
-        // Wait for the (preloaded) page to actually be ready — rendering before
-        // markdown-it loads would paint nothing. Resolves on didFinish/didFail
-        // (typically ~300ms); the cap is only a hang guard.
+        // Wait for the (preloaded) page; rendering before markdown-it loads would
+        // paint nothing. Resolves on didFinish/didFail; the cap is a hang guard.
         await awaitPageReady(ms: 1500)
 
         let js = "window.__setTheme('\(theme)'); window.__render(\(jsLiteral(text)), \(jsLiteral(displayPath))); true"
         await evalBounded(js, ms: 700)
 
-        // Let WebKit lay out + paint before Quick Look captures the view, else it
-        // snapshots an empty layer.
+        // Let WebKit lay out + paint before Quick Look captures the view.
         try? await Task.sleep(nanoseconds: 300_000_000)
     }
 
