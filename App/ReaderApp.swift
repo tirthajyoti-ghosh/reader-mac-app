@@ -11,6 +11,7 @@ struct ReaderApp: App {
         Window("Reader", id: "main") {
             ContentView()
                 .environmentObject(model)
+                .modifier(WindowOpenerBridge())
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
@@ -42,4 +43,26 @@ struct ReaderApp: App {
             }
         }
     }
+}
+
+/// Bridges SwiftUI's `openWindow` action out to AppKit. A single `Window`
+/// scene's window can be *closed* (red button) while the app keeps running;
+/// once closed there's no NSWindow to raise, so AppDelegate can't bring it back
+/// on a file-open — only `openWindow(id:)` can recreate it. We capture that
+/// action here (it stays valid for the app's lifetime) and stash it where the
+/// AppDelegate can call it.
+private struct WindowOpenerBridge: ViewModifier {
+    @Environment(\.openWindow) private var openWindow
+    func body(content: Content) -> some View {
+        content.onAppear {
+            WindowOpener.shared.reopen = { openWindow(id: "main") }
+        }
+    }
+}
+
+/// Holds the captured `openWindow` action so non-SwiftUI code (AppDelegate) can
+/// reopen the main window.
+final class WindowOpener {
+    static let shared = WindowOpener()
+    var reopen: (() -> Void)?
 }
