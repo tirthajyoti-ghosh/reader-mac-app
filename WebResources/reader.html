@@ -56,12 +56,10 @@
     </div>
   </div>
 
-  <!-- vendored, offline -->
+  <!-- vendored, offline. Mermaid (2.5 MB) + KaTeX are loaded on demand by app.js,
+       only for documents that actually use them — keeps every render snappy. -->
   <script src="./vendor/markdown-it.min.js"></script>
   <script src="./vendor/highlight.min.js"></script>
-  <script src="./vendor/mermaid.min.js"></script>
-  <script src="./vendor/katex/katex.min.js"></script>
-  <script src="./vendor/katex/auto-render.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

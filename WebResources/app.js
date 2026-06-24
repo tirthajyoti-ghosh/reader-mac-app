@@ -162,6 +162,41 @@
     } catch (e) {}
   }
 
+  /* ---- lazy-load heavy libs (Mermaid / KaTeX) only when a doc needs them ---- */
+  function loadScript(src, done) {
+    var s = document.createElement("script");
+    s.src = src; s.async = false;
+    s.onload = function () { done(); };
+    s.onerror = function () { done(); };   // fail-safe: don't block render
+    document.head.appendChild(s);
+  }
+  var katexState = 0, katexQueue = [];     // 0 = not loaded, 1 = loading, 2 = ready
+  function ensureKatex(cb) {
+    if (window.renderMathInElement) { cb(); return; }
+    katexQueue.push(cb);
+    if (katexState === 1) return;
+    katexState = 1;
+    loadScript("./vendor/katex/katex.min.js", function () {
+      loadScript("./vendor/katex/auto-render.min.js", function () {
+        katexState = 2;
+        var q = katexQueue; katexQueue = [];
+        q.forEach(function (f) { f(); });
+      });
+    });
+  }
+  var mermaidState = 0, mermaidQueue = [];
+  function ensureMermaid(cb) {
+    if (window.mermaid) { cb(); return; }
+    mermaidQueue.push(cb);
+    if (mermaidState === 1) return;
+    mermaidState = 1;
+    loadScript("./vendor/mermaid.min.js", function () {
+      mermaidState = 2;
+      var q = mermaidQueue; mermaidQueue = [];
+      q.forEach(function (f) { f(); });
+    });
+  }
+
   /* ---- signature: reading-progress hairline -------------------------------- */
   function updateProgress() {
     var m = scroller.scrollHeight - scroller.clientHeight;
@@ -206,8 +241,9 @@
     prependDocPath(path);
     transformCallouts(doc);
     transformTaskLists(doc);
-    renderMath(doc);
-    runMermaid(doc);
+    // Only pull in KaTeX / Mermaid for docs that actually use them.
+    if (/\$|\\\(|\\\[/.test(lastMarkdown)) ensureKatex(function () { renderMath(doc); });
+    if (doc.querySelector(".mermaid")) ensureMermaid(function () { runMermaid(doc); });
     scroller.scrollTop = 0;
     updateProgress();
   };
