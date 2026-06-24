@@ -493,3 +493,209 @@
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-sm); padding: 1px 6px; color: var(--text-2);
 }
+
+/* ============================================================================
+   LINK SURFACE — opening links without losing your place
+   A link is a DETOUR, not a destination. Reading position is sacred:
+   hover = peek · click = slide-over (Esc returns, scroll preserved) ·
+   drag-wider / ⌥-click = split · ⌘-click / right-click = system browser ·
+   internal .md = in-place + Back · #anchor = smooth-scroll + brief flash.
+   ============================================================================ */
+:root {
+  --peek-width: 340px;          /* hover/press peek card                 */
+  --sheet-width: 60%;           /* slide-over default width              */
+  --sheet-max: 760px;
+  --scrim: hsl(0 0% 0% / .46);  /* dims the doc behind the sheet (dark)  */
+  --split-min: 340px;           /* min width of either split pane        */
+  --divider-w: 1px;
+  --divider-hit: 11px;          /* draggable hit area around the divider */
+  --link-shadow: 0 12px 32px rgba(0,0,0,.30);
+  /* up-right outbound arrow, drawn as a mask so it inherits link color  */
+  --ico-outbound: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E");
+}
+:root[data-theme="light"] {
+  --scrim: hsl(0 0% 0% / .20);
+  --link-shadow: 0 12px 32px rgba(0,0,0,.14);
+}
+
+/* ---- LINK VARIANTS (inside .md) -------------------------------------------
+   Base `.md a` (clay + subtle underline) is defined above. These telegraph
+   WHERE a link goes before you click. Add the class server-side at render. */
+
+/* external → leaves the doc; small outbound arrow */
+.md a.external::after {
+  content: ""; display: inline-block;
+  width: .60em; height: .60em; margin-left: .14em;
+  vertical-align: -.01em;
+  background: currentColor;
+  -webkit-mask: var(--ico-outbound) center / contain no-repeat;
+          mask: var(--ico-outbound) center / contain no-repeat;
+  opacity: .72;
+}
+/* external, already visited → dimmed (app adds `.visited`; :visited can't
+   carry these styles reliably) */
+.md a.external.visited { opacity: .58; }
+.md a.external.visited::after { opacity: .5; }
+
+/* internal .md → another doc in this set; dashed underline, same clay */
+.md a.internal {
+  text-decoration-style: dashed;
+  text-decoration-color: var(--accent-line);
+}
+
+/* #anchor → same-page jump; the quietest link. Inherits text color, faint
+   dotted rule, only warms to clay on hover */
+.md a.anchor {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--muted);
+}
+.md a.anchor:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* numbered / footnote citation [1] [2] → distinct from inline links:
+   a small superscript chip, not an underlined run */
+.md a.cite {
+  font-family: var(--ui);
+  font-size: .68em; font-weight: 700;
+  vertical-align: super; line-height: 0;
+  color: var(--accent);
+  text-decoration: none;
+  padding: .15em .4em; margin: 0 .06em;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+}
+.md a.cite:hover { background: var(--accent); color: var(--bg); }
+
+/* #anchor target: brief heading highlight on arrival (no sheet) */
+@keyframes rdr-flash {
+  from { background: var(--accent-soft); }
+  to   { background: transparent; }
+}
+.md .flash {
+  animation: rdr-flash 1.25s ease-out;
+  border-radius: 6px;
+  box-decoration-break: clone;
+}
+
+/* ---- PEEK CARD (hover / press-and-hold) -----------------------------------
+   Resolves a link without opening it. Floating card; position from JS. */
+.peek {
+  width: var(--peek-width);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--link-shadow);
+  overflow: hidden;
+  font-family: var(--ui);
+}
+.peek-thumb {
+  height: 144px; background: var(--code-bg);
+  border-bottom: 1px solid var(--border);
+  background-size: cover; background-position: center;
+}
+.peek-body { padding: 13px 15px 4px; }
+.peek-head { display: flex; align-items: center; gap: 7px; }
+.peek-favicon {
+  width: 16px; height: 16px; border-radius: 4px; flex: none;
+  background: var(--accent-soft);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: var(--accent);
+}
+.peek-domain { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.peek-title {
+  font-size: 14px; font-weight: 600; color: var(--text);
+  line-height: 1.34; margin: 8px 0 0;
+}
+.peek-desc {
+  font-size: 12.5px; color: var(--text-2); line-height: 1.5;
+  margin: 5px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* internal-doc peek shows a live rendered snippet in our own styling */
+.peek-snippet {
+  padding: 12px 15px;
+  border-top: 1px solid var(--border);
+  max-height: 168px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+          mask-image: linear-gradient(#000 70%, transparent);
+}
+.peek-actions {
+  display: flex; align-items: center; gap: 4px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--border);
+}
+.peek-btn {
+  font-family: var(--ui); font-size: 12px; font-weight: 500;
+  color: var(--text-2); background: transparent;
+  border: none; border-radius: 6px; padding: 5px 9px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.peek-btn:hover { background: var(--bg); color: var(--text); }
+.peek-btn.primary { color: var(--accent); }
+.peek-btn .sep { margin: 0 1px; color: var(--border); }
+/* OFFLINE FALLBACK (Quick Look / no network): link text + bare domain only */
+.peek.offline { width: 280px; }
+.peek.offline .peek-body { padding: 13px 15px; }
+.peek.offline .peek-offline-note {
+  font-size: 11.5px; color: var(--muted);
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+}
+
+/* ---- SLIDE-OVER SHEET (default for an external link) ----------------------
+   Slides in from the right OVER the doc. The doc stays put at the left and is
+   dimmed by the scrim — NEVER scrolled. Closing returns to the exact spot. */
+.scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 40; }
+.sheet {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 41;
+  width: var(--sheet-width); max-width: var(--sheet-max);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -16px 0 48px rgba(0,0,0,.34);
+  display: flex; flex-direction: column;
+}
+.sheet-header {
+  height: 48px; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sheet-nav { display: flex; gap: 1px; }
+.sheet-id { min-width: 0; }
+.sheet-title {
+  font-family: var(--ui); font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
+}
+.sheet-domain { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.sheet-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.sheet-body { flex: 1; overflow: auto; background: var(--bg); }
+
+/* ---- SPLIT VIEW (deliberate escalation, not the default) ------------------
+   Doc left, link right, draggable divider, independent scroll. Reached by
+   dragging the sheet past a threshold, or ⌥-click. */
+.split { display: flex; height: 100%; }
+.split-pane { flex: 1; min-width: var(--split-min); overflow: auto; position: relative; }
+.split-divider {
+  flex: none; width: var(--divider-hit); cursor: col-resize;
+  margin: 0 calc(var(--divider-hit) / -2); position: relative; z-index: 2;
+}
+.split-divider::before {
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+  width: var(--divider-w); transform: translateX(-50%);
+  background: var(--border);
+}
+.split-divider:hover::before,
+.split-divider.dragging::before { background: var(--accent); width: 2px; }
+
+/* ---- BREADCRUMB (in-place internal .md navigation) ------------------------
+   A quiet "← Source doc" so you're never lost; Back returns to prior doc+scroll. */
+.breadcrumb {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--ui); font-size: 12.5px; color: var(--muted);
+  padding: 5px 10px 5px 8px; margin-bottom: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px; cursor: pointer; user-select: none;
+}
+.breadcrumb:hover { color: var(--text); border-color: var(--muted); }
+.breadcrumb .src { color: var(--text-2); }

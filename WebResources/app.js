@@ -205,6 +205,180 @@
   scroller.addEventListener("scroll", updateProgress, { passive: true });
   window.addEventListener("resize", updateProgress);
 
+  /* ============================================================================
+     LINK SURFACE — a link is a DETOUR, not a destination. Classify links so they
+     telegraph their target, intercept activation, peek on hover. Routing happens
+     Swift-side (the doc webview stays mounted, so scroll is preserved for free).
+     In Quick Look (no bridge) links are styled but non-interactive.
+     ============================================================================ */
+  var INTERACTIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.link);
+  function postLink(p) { if (INTERACTIVE) window.webkit.messageHandlers.link.postMessage(p); }
+  function postPeek(p) { if (INTERACTIVE && window.webkit.messageHandlers.peek) window.webkit.messageHandlers.peek.postMessage(p); }
+
+  var MD_EXT = /\.(md|markdown|mdown|mkd|mdwn|mdtext)(?:[#?].*)?$/i;
+  var WIFI_OFF_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5 12.5a11 11 0 0 1 14 0"/><path d="M8.5 16a6 6 0 0 1 7 0"/><path d="M12 20h.01"/><path d="m2 2 20 20"/></svg>';
+  var DOC_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>';
+
+  function slugify(s) {
+    return (s || "").toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+  }
+  function addHeadingIds(container) {
+    var used = {};
+    container.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach(function (h) {
+      if (h.id) { used[h.id] = 1; return; }
+      var base = slugify(h.textContent) || "section", id = base, n = 2;
+      while (used[id]) { id = base + "-" + n; n++; }
+      used[id] = 1; h.id = id;
+    });
+  }
+  function domainOf(href) {
+    try { return new URL(href).hostname.replace(/^www\./, ""); }
+    catch (e) { return (href || "").split("/")[2] || href; }
+  }
+  function resolveInternal(href, docDir) {
+    var hash = "", q = href.indexOf("#");
+    if (q >= 0) { hash = href.slice(q); href = href.slice(0, q); }
+    if (/^([a-z]+:)?\/\//i.test(href) || href.charAt(0) === "/") return href + hash;
+    if (!docDir) return href + hash;
+    var parts = (docDir + "/" + href).split("/"), out = [];
+    parts.forEach(function (seg) {
+      if (seg === "" || seg === ".") return;
+      if (seg === "..") { out.pop(); return; }
+      out.push(seg);
+    });
+    return "/" + out.join("/") + hash;
+  }
+  var visitedSet = {};
+  function classifyLinks(container, docDir) {
+    container.querySelectorAll("a[href]").forEach(function (a) {
+      var href = a.getAttribute("href") || "";
+      if (href.charAt(0) === "#") { a.classList.add("anchor"); return; }
+      if (MD_EXT.test(href)) {
+        a.classList.add("internal");
+        a.dataset.target = resolveInternal(href, docDir);
+        return;
+      }
+      a.classList.add("external");
+      a.dataset.target = href;
+      if (visitedSet[href]) a.classList.add("visited");
+    });
+  }
+  function linkKind(a) {
+    return a.classList.contains("internal") ? "internal"
+         : a.classList.contains("anchor") ? "anchor" : "external";
+  }
+  function scrollToAnchor(frag) {
+    var id = (frag || "").replace(/^#/, "");
+    var el = document.getElementById(id) || document.getElementById(slugify(decodeURIComponent(id)));
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    setTimeout(function () { el.classList.remove("flash"); }, 1300);
+  }
+  window.__scrollToAnchor = scrollToAnchor;
+  window.__markVisited = function (href) {
+    visitedSet[href] = 1;
+    doc.querySelectorAll("a.external").forEach(function (a) {
+      if ((a.dataset.target || a.getAttribute("href")) === href) a.classList.add("visited");
+    });
+  };
+  window.__getScroll = function () { return scroller.scrollTop; };
+  window.__setScroll = function (t) { scroller.scrollTop = t || 0; updateProgress(); };
+
+  function prependBreadcrumb(name) {
+    if (!name) return;
+    var b = document.createElement("div");
+    b.className = "breadcrumb";
+    b.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg><span>Back to <span class="src"></span></span>';
+    b.querySelector(".src").textContent = name;
+    b.addEventListener("click", function () { postLink({ event: "back" }); });
+    doc.insertBefore(b, doc.firstChild);
+  }
+
+  /* clicks / right-clicks (anchors handled locally; rest routed to Swift) */
+  doc.addEventListener("click", function (e) {
+    var a = e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a) return;
+    e.preventDefault();
+    hidePeek();
+    if (linkKind(a) === "anchor") { scrollToAnchor(a.getAttribute("href")); return; }
+    postLink({ event: "click", href: a.dataset.target || a.getAttribute("href"),
+               kind: linkKind(a), text: (a.textContent || "").trim(),
+               cmd: !!e.metaKey, alt: !!e.altKey, shift: !!e.shiftKey, ctrl: !!e.ctrlKey });
+  }, true);
+  doc.addEventListener("contextmenu", function (e) {
+    var a = e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a || linkKind(a) === "anchor") return;
+    e.preventDefault();
+    postLink({ event: "contextmenu", href: a.dataset.target || a.getAttribute("href"),
+               kind: linkKind(a), text: (a.textContent || "").trim() });
+  }, true);
+
+  /* hover peek */
+  var peekTimer = null, peekCard = null, peekAnchor = null, peekSeq = 0, peekCache = {}, peekX = 0, peekY = 0;
+  function hidePeek() { clearTimeout(peekTimer); if (peekCard) { peekCard.remove(); peekCard = null; } peekAnchor = null; }
+  window.__hidePeek = hidePeek;
+  doc.addEventListener("mouseover", function (e) {
+    var a = e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a || linkKind(a) === "anchor") return;
+    if (a === peekAnchor) return;
+    clearTimeout(peekTimer);
+    peekX = e.clientX; peekY = e.clientY;
+    peekTimer = setTimeout(function () { requestPeek(a); }, 250);
+  });
+  doc.addEventListener("mouseout", function (e) {
+    var a = e.target.closest ? e.target.closest("a[href]") : null;
+    if (a) clearTimeout(peekTimer);
+  });
+  function requestPeek(a) {
+    var href = a.dataset.target || a.getAttribute("href"), kind = linkKind(a);
+    peekAnchor = a;
+    var seq = ++peekSeq;
+    if (peekCache[href]) { showPeek(peekCache[href], seq); return; }
+    if (!INTERACTIVE) { showPeek({ offline: true, kind: kind, href: href, domain: domainOf(href) }, seq); return; }
+    postPeek({ id: seq, href: href, kind: kind });
+  }
+  window.__peekResult = function (id, data) {
+    if (id !== peekSeq) return;
+    if (data && data.href) peekCache[data.href] = data;
+    showPeek(data, id);
+  };
+  function showPeek(data, seq) {
+    if (seq !== peekSeq) return;
+    if (peekCard) peekCard.remove();
+    var d = data || {}, card = document.createElement("div");
+    card.className = "peek" + (d.offline ? " offline" : "");
+    var html;
+    if (d.offline) {
+      html = '<div class="peek-body"><div class="peek-head"><span class="peek-favicon" style="background:var(--border);color:var(--muted);">↗</span><span class="peek-domain"></span></div><div class="peek-title"></div><div class="peek-offline-note">' + WIFI_OFF_SVG + 'Preview unavailable offline</div></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="browser">Browser ↗</button></div>';
+    } else if (d.kind === "internal") {
+      html = '<div class="peek-body"><div class="peek-head">' + DOC_SVG + '<span class="peek-domain"></span></div></div><div class="peek-snippet"><article class="md" style="padding:0;max-width:none;font-size:14px;line-height:1.55;"></article></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="split">Open in split</button></div>';
+    } else {
+      html = (d.image ? '<div class="peek-thumb" data-img></div>' : "") + '<div class="peek-body"><div class="peek-head"><span class="peek-favicon" data-fav></span><span class="peek-domain"></span></div><div class="peek-title"></div><div class="peek-desc"></div></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="split">Open in split</button><span class="sep">·</span><button class="peek-btn" data-act="browser">Browser ↗</button></div>';
+    }
+    card.innerHTML = html;
+    var set = function (sel, val) { var el = card.querySelector(sel); if (el && val != null) el.textContent = val; };
+    set(".peek-domain", d.domain || domainOf(d.href || ""));
+    set(".peek-title", d.title || d.href || "");
+    set(".peek-desc", d.description || "");
+    var fav = card.querySelector("[data-fav]"); if (fav) fav.textContent = ((d.site || d.domain || "•") + "").charAt(0).toUpperCase();
+    var thumb = card.querySelector("[data-img]"); if (thumb && d.image) thumb.style.backgroundImage = "url('" + ("" + d.image).replace(/'/g, "%27") + "')";
+    var snip = card.querySelector(".peek-snippet .md"); if (snip && d.snippet) snip.innerHTML = md.render(d.snippet);
+    card.querySelectorAll(".peek-btn").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        postLink({ event: "peekAction", action: btn.getAttribute("data-act"), href: d.href, kind: d.kind || "external" });
+        hidePeek();
+      });
+    });
+    card.style.position = "fixed"; card.style.zIndex = "60";
+    card.style.left = Math.max(8, Math.min(peekX, window.innerWidth - (d.offline ? 296 : 356))) + "px";
+    card.style.top = Math.min(peekY + 12, window.innerHeight - 250) + "px";
+    card.addEventListener("mouseleave", hidePeek);
+    document.body.appendChild(card);
+    peekCard = card;
+  }
+
   /* ---- public API ---------------------------------------------------------- */
   var lastMarkdown = "";
   var findHits = [];
@@ -233,18 +407,22 @@
     doc.insertBefore(wrap, doc.firstChild);
   }
 
-  window.__render = function (text, path) {
+  window.__render = function (text, path, docDir, breadcrumb, restoreScroll) {
     findHits = [];           // doc is replaced below; any old marks go with it
     findPos = -1;
+    hidePeek();
     lastMarkdown = typeof text === "string" ? text : "";
     doc.innerHTML = md.render(lastMarkdown);
-    prependDocPath(path);
+    addHeadingIds(doc);
+    classifyLinks(doc, docDir);
     transformCallouts(doc);
     transformTaskLists(doc);
+    prependDocPath(path);
+    prependBreadcrumb(breadcrumb && breadcrumb.name);   // above the doc-path, if navigated in
     // Only pull in KaTeX / Mermaid for docs that actually use them.
     if (/\$|\\\(|\\\[/.test(lastMarkdown)) ensureKatex(function () { renderMath(doc); });
     if (doc.querySelector(".mermaid")) ensureMermaid(function () { runMermaid(doc); });
-    scroller.scrollTop = 0;
+    scroller.scrollTop = restoreScroll || 0;
     updateProgress();
   };
 

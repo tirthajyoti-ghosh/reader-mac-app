@@ -14,18 +14,16 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 TopBar()
 
-                ZStack(alignment: .topTrailing) {
+                ZStack {
                     p.bg
                     if let doc = model.selectedDocument {
-                        MarkdownWebView(document: doc, theme: model.theme, model: model)
+                        ReadingArea(document: doc)
                     } else {
                         EmptyState()
                     }
-                    if model.findVisible {
-                        FindBar()
-                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
             }
             .background(p.bg)
         }

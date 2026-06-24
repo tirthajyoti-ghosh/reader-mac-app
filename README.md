@@ -18,6 +18,13 @@ quiet reading-progress hairline.
   code with syntax highlighting; blockquotes; GitHub **callouts**
   (`[!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` / `[!CAUTION]`);
   **Mermaid** diagrams; **KaTeX** math (`$…$`, `$$…$$`, `\(…\)`, `\[…\]`).
+- **Link surface** — a link is a *detour, not a destination*, so reading position is
+  sacred. **Hover** a link for a peek card (live preview; offline fallback in Quick Look);
+  **click** an external link for a slide-over **sheet** that dims the doc but never scrolls
+  it (Esc / tap-scrim returns to the exact spot); **drag the sheet wider** or **⌥-click** to
+  escalate to a **split**; **⌘-click / right-click** opens the system browser; internal
+  `.md` links navigate **in place** with a breadcrumb **Back** that restores the prior doc
+  *and* its scroll; `#anchor`s smooth-scroll + briefly flash the target heading.
 - **Default `.md` handler** — double-click a Markdown file to open it rendered.
 - **Quick Look** — spacebar a `.md` in Finder for an identical, chrome-less preview.
 - **Tabs**, a **sidebar** that lists `.md/.markdown/.txt` in a watched folder
@@ -111,8 +118,14 @@ packages live in `scripts/vendor.sh`.
 ## Sandboxing
 
 The **app is non-sandboxed** (personal use) so it can watch `~/.claude/plans` and
-open files from anywhere. The **Quick Look extension is sandboxed** (a system
-requirement) with `com.apple.security.files.user-selected.read-only`.
+open files from anywhere — and, because it isn't sandboxed, it can make the
+**outbound network requests** the link surface needs (resolving Open Graph metadata
+for hover peeks and loading external pages in the sheet/split). Those fetches run
+**only on user hover/click**, through an **ephemeral** (non-persistent) session.
+The **Quick Look extension is sandboxed** (a system requirement) with
+`com.apple.security.files.user-selected.read-only` (+ `network.client`, which
+WKWebView needs to render even local content); there, links are styled but
+**non-interactive** — no peek/sheet/fetch, just the offline fallback.
 
 To ship a **sandboxed, notarized** build instead: enable App Sandbox on the app,
 persist the watched folder via a **security-scoped bookmark** (the folder picker

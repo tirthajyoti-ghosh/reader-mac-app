@@ -14,6 +14,7 @@ struct Palette {
     let border: Color
     let accent: Color
     let accentSoft: Color
+    let scrim: Color
 
     static let dark = Palette(
         bg:         Color(hex: 0x1F1F1E),
@@ -24,7 +25,8 @@ struct Palette {
         muted:      Color(hex: 0x97958C),
         border:     Color(hex: 0x454442),
         accent:     Color(hex: 0xD97757),
-        accentSoft: Color(hex: 0xD97757, opacity: 0.14)
+        accentSoft: Color(hex: 0xD97757, opacity: 0.14),
+        scrim:      Color(.sRGB, white: 0, opacity: 0.46)
     )
 
     static let light = Palette(
@@ -36,7 +38,8 @@ struct Palette {
         muted:      Color(hex: 0x7B7974),
         border:     Color(hex: 0xE7E6E1),
         accent:     Color(hex: 0xC6613F),
-        accentSoft: Color(hex: 0xC6613F, opacity: 0.10)
+        accentSoft: Color(hex: 0xC6613F, opacity: 0.10),
+        scrim:      Color(.sRGB, white: 0, opacity: 0.20)
     )
 }
 

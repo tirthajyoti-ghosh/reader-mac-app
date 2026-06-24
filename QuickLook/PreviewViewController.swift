@@ -117,6 +117,12 @@ extension PreviewViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { markReady() }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { markReady() }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { markReady() }
+
+    /// Links are non-interactive in Quick Look — never navigate away from the preview.
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        decisionHandler(navigationAction.navigationType == .linkActivated ? .cancel : .allow)
+    }
 }
 
 /// JSON-encode a string into a JS string literal for safe `evaluateJavaScript`.
