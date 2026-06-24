@@ -6,7 +6,9 @@ struct ReaderApp: App {
     @StateObject private var model = AppModel.shared
 
     var body: some Scene {
-        WindowGroup {
+        // A single `Window` (not `WindowGroup`): opening a file reuses this one
+        // window and adds a tab, instead of spawning a new window each time.
+        Window("Reader", id: "main") {
             ContentView()
                 .environmentObject(model)
         }
