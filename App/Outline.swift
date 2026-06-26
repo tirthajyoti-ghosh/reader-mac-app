@@ -22,9 +22,16 @@ struct OutlineSlot: View {
         let show = model.outlineVisible && document.surface?.mode != .split
         Group {
             if show {
-                OutlinePanel(document: document)
-                    .id(document.id)   // fresh filter/scroll state per tab
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                HStack(spacing: 0) {
+                    ResizeDivider(palette: model.palette, lineAlignment: .trailing,
+                                  onBegin: { model.beginOutlineResize() },
+                                  onChange: { model.resizeOutline(translation: $0) },
+                                  onEnded: { model.persistPanelWidths() })
+                    OutlinePanel(document: document)
+                        .frame(width: model.outlineWidth)
+                        .id(document.id)   // fresh filter/scroll state per tab
+                }
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: show)
@@ -60,10 +67,8 @@ struct OutlinePanel: View {
                 list(p)
             }
         }
-        .frame(width: 256)                       // --outline-width
         .frame(maxHeight: .infinity)
         .background(p.surface)
-        .overlay(p.border.frame(width: 1), alignment: .leading)
     }
 
     // header: "OUTLINE" label + filter field

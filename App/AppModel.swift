@@ -27,6 +27,13 @@ final class AppModel: ObservableObject {
     // Outline (table of contents) panel — right side; persisted, default closed.
     @Published var outlineVisible = false
 
+    // Resizable panel widths (persisted). Drag deltas are applied from the width
+    // captured at drag-start so clamping never drifts from the cursor.
+    @Published var sidebarWidth: CGFloat = 248
+    @Published var outlineWidth: CGFloat = 256
+    private var sidebarWidthAtDragStart: CGFloat = 248
+    private var outlineWidthAtDragStart: CGFloat = 256
+
     // Find bar
     @Published var findVisible = false
     @Published var findQuery = ""
@@ -54,6 +61,10 @@ final class AppModel: ObservableObject {
             self.recents = savedRecents.map { URL(fileURLWithPath: $0) }
         }
         self.outlineVisible = UserDefaults.standard.bool(forKey: "outlineVisible")
+        let sw = UserDefaults.standard.double(forKey: "sidebarWidth")
+        if sw > 0 { self.sidebarWidth = CGFloat(sw) }
+        let ow = UserDefaults.standard.double(forKey: "outlineWidth")
+        if ow > 0 { self.outlineWidth = CGFloat(ow) }
         reloadSidebar()
         watchFolder()
     }
@@ -149,6 +160,21 @@ final class AppModel: ObservableObject {
     /// Scroll the front document to a heading (no reload — the webview stays mounted).
     func scrollToHeading(_ id: String) {
         activeWebView?.evaluateJavaScript("window.__scrollToHeading(\(jsStringLiteral(id)))")
+    }
+
+    // MARK: - Panel resizing
+
+    func beginSidebarResize() { sidebarWidthAtDragStart = sidebarWidth }
+    func resizeSidebar(translation: CGFloat) {          // divider on the sidebar's right edge
+        sidebarWidth = min(440, max(190, sidebarWidthAtDragStart + translation))
+    }
+    func beginOutlineResize() { outlineWidthAtDragStart = outlineWidth }
+    func resizeOutline(translation: CGFloat) {          // divider on the outline's left edge
+        outlineWidth = min(440, max(200, outlineWidthAtDragStart - translation))
+    }
+    func persistPanelWidths() {
+        UserDefaults.standard.set(Double(sidebarWidth), forKey: "sidebarWidth")
+        UserDefaults.standard.set(Double(outlineWidth), forKey: "outlineWidth")
     }
 
     // MARK: - Sidebar

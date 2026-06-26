@@ -66,9 +66,8 @@ struct Sidebar: View {
             .padding(.vertical, 12)
             .overlay(p.border.frame(height: 1), alignment: .top)
         }
-        .frame(width: 248)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(p.surface)
-        .overlay(p.border.frame(width: 1), alignment: .trailing)
     }
 
     private func fileItem(_ url: URL) -> FileItem {
