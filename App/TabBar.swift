@@ -23,8 +23,11 @@ struct TopBar: View {
                 }
             }
             Spacer(minLength: 0)
-            ThemeToggle()
-                .padding(.horizontal, 12)
+            HStack(spacing: 2) {
+                ThemeToggle()
+                OutlineToggle()
+            }
+            .padding(.horizontal, 12)
         }
         .frame(height: 40)
         .background(p.bg)

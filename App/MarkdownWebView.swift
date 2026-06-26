@@ -19,6 +19,7 @@ struct MarkdownWebView: NSViewRepresentable {
         config.userContentController.add(handler, name: "revealFile")
         config.userContentController.add(handler, name: "link")
         config.userContentController.add(handler, name: "peek")
+        config.userContentController.add(handler, name: "outline")
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -112,6 +113,25 @@ struct MarkdownWebView: NSViewRepresentable {
                 if let url = document?.url { NSWorkspace.shared.activateFileViewerSelecting([url]) }
             case "link": handleLink(message.body)
             case "peek": handlePeek(message.body)
+            case "outline": handleOutline(message.body)
+            default: break
+            }
+        }
+
+        /// Heading tree + scroll-spy updates from the renderer → the front doc's
+        /// per-tab outline state (drives the native OutlinePanel).
+        private func handleOutline(_ body: Any) {
+            guard let d = body as? [String: Any], let type = d["type"] as? String else { return }
+            switch type {
+            case "headings":
+                let items = (d["items"] as? [[String: Any]]) ?? []
+                document?.headings = items.compactMap { item in
+                    guard let id = item["id"] as? String, let text = item["text"] as? String else { return nil }
+                    let level = (item["level"] as? Int) ?? Int((item["level"] as? Double) ?? 0)
+                    return Heading(id: id, text: text, level: level)
+                }
+            case "active":
+                document?.activeHeadingID = d["id"] as? String
             default: break
             }
         }

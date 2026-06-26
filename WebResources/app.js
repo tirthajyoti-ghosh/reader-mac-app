@@ -208,6 +208,7 @@
     progress.style.setProperty("--progress", m > 0 ? (scroller.scrollTop / m).toFixed(3) : 0);
   }
   scroller.addEventListener("scroll", updateProgress, { passive: true });
+  scroller.addEventListener("scroll", function () { scheduleSpy(); }, { passive: true });
   window.addEventListener("resize", updateProgress);
 
   /* ============================================================================
@@ -219,6 +220,68 @@
   var INTERACTIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.link);
   function postLink(p) { if (INTERACTIVE) window.webkit.messageHandlers.link.postMessage(p); }
   function postPeek(p) { if (INTERACTIVE && window.webkit.messageHandlers.peek) window.webkit.messageHandlers.peek.postMessage(p); }
+
+  /* ---- OUTLINE: emit the heading tree + scroll-spy to Swift ----------------- */
+  // App-only (the panel is native SwiftUI). Absent in Quick Look → no-op.
+  var OUTLINE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.outline);
+  function postOutline(p) { if (OUTLINE) window.webkit.messageHandlers.outline.postMessage(p); }
+  var headingEls = [], activeHeadingId = null, spyScheduled = false, spyObserver = null;
+
+  // Snapshot the rendered headings (ids already assigned by addHeadingIds) and
+  // hand Swift an ordered [{id,text,level}] — level is 0-based (h1=0 … h6=5).
+  function emitHeadings() {
+    headingEls = Array.prototype.slice.call(doc.querySelectorAll("h1,h2,h3,h4,h5,h6"))
+      .filter(function (h) { return !h.closest(".doc-path,.breadcrumb"); });
+    if (!OUTLINE) return;
+    var items = headingEls.map(function (h) {
+      return { id: h.id, text: (h.textContent || "").trim(), level: parseInt(h.tagName.charAt(1), 10) - 1 };
+    });
+    postOutline({ type: "headings", items: items });
+  }
+
+  // Active section = the last heading whose top has passed the reading top band.
+  function computeActiveId() {
+    if (!headingEls.length) return null;
+    // At the very bottom, the trailing section is active even if its heading
+    // never reached the band (a short last section can't scroll to the top).
+    if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) {
+      return headingEls[headingEls.length - 1].id;
+    }
+    var top = scroller.getBoundingClientRect().top + 120;   // band just under the toolbar
+    var id = headingEls[0].id;
+    for (var i = 0; i < headingEls.length; i++) {
+      if (headingEls[i].getBoundingClientRect().top <= top) id = headingEls[i].id;
+      else break;
+    }
+    return id;
+  }
+  function flushSpy() {
+    spyScheduled = false;
+    var id = computeActiveId();
+    if (id !== activeHeadingId) { activeHeadingId = id; if (id) postOutline({ type: "active", id: id }); }
+  }
+  function scheduleSpy() {            // throttle to one update per frame
+    if (spyScheduled || !OUTLINE) return;
+    spyScheduled = true;
+    requestAnimationFrame(flushSpy);
+  }
+  function setupScrollSpy() {
+    if (spyObserver) { spyObserver.disconnect(); spyObserver = null; }
+    activeHeadingId = null;
+    if (!OUTLINE || !headingEls.length) return;
+    spyObserver = new IntersectionObserver(scheduleSpy, { root: scroller, threshold: [0, 1] });
+    headingEls.forEach(function (h) { spyObserver.observe(h); });
+    scheduleSpy();                    // seed the initial active heading
+  }
+
+  // Called from the SwiftUI outline panel: scroll the doc to a heading (no reload).
+  window.__scrollToHeading = function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    setTimeout(function () { el.classList.remove("flash"); }, 1300);
+  };
 
   var MD_EXT = /\.(md|markdown|mdown|mkd|mdwn|mdtext)(?:[#?].*)?$/i;
   var WIFI_OFF_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5 12.5a11 11 0 0 1 14 0"/><path d="M8.5 16a6 6 0 0 1 7 0"/><path d="M12 20h.01"/><path d="m2 2 20 20"/></svg>';
@@ -424,6 +487,8 @@
     transformTaskLists(doc);
     prependDocPath(path);
     prependBreadcrumb(breadcrumb && breadcrumb.name);   // above the doc-path, if navigated in
+    emitHeadings();          // hand the heading tree to the native outline panel
+    setupScrollSpy();        // (re)arm the IntersectionObserver for the new DOM
     // Only pull in KaTeX / Mermaid for docs that actually use them.
     if (/\$|\\\(|\\\[/.test(lastMarkdown)) ensureKatex(function () { renderMath(doc); });
     if (doc.querySelector(".mermaid")) ensureMermaid(function () { runMermaid(doc); });

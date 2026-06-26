@@ -24,6 +24,9 @@ final class AppModel: ObservableObject {
     // Recently opened (persisted across launches; may point outside the watched folder)
     @Published var recents: [URL] = []
 
+    // Outline (table of contents) panel — right side; persisted, default closed.
+    @Published var outlineVisible = false
+
     // Find bar
     @Published var findVisible = false
     @Published var findQuery = ""
@@ -50,6 +53,7 @@ final class AppModel: ObservableObject {
         if let savedRecents = UserDefaults.standard.stringArray(forKey: "recents") {
             self.recents = savedRecents.map { URL(fileURLWithPath: $0) }
         }
+        self.outlineVisible = UserDefaults.standard.bool(forKey: "outlineVisible")
         reloadSidebar()
         watchFolder()
     }
@@ -133,6 +137,18 @@ final class AppModel: ObservableObject {
 
     func toggleSidebar() {
         sidebarVisible.toggle()
+    }
+
+    // MARK: - Outline
+
+    func toggleOutline() {
+        outlineVisible.toggle()
+        UserDefaults.standard.set(outlineVisible, forKey: "outlineVisible")
+    }
+
+    /// Scroll the front document to a heading (no reload — the webview stays mounted).
+    func scrollToHeading(_ id: String) {
+        activeWebView?.evaluateJavaScript("window.__scrollToHeading(\(jsStringLiteral(id)))")
     }
 
     // MARK: - Sidebar

@@ -14,16 +14,23 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 TopBar()
 
-                ZStack {
-                    p.bg
+                HStack(spacing: 0) {
+                    ZStack {
+                        p.bg
+                        if let doc = model.selectedDocument {
+                            ReadingArea(document: doc)
+                        } else {
+                            EmptyState()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+
+                    // Right-side outline panel (per-tab; yields to a link split).
                     if let doc = model.selectedDocument {
-                        ReadingArea(document: doc)
-                    } else {
-                        EmptyState()
+                        OutlineSlot(document: doc)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
             }
             .background(p.bg)
         }

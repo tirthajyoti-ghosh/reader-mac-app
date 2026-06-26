@@ -27,6 +27,11 @@ final class Document: ObservableObject, Identifiable {
     // Per-tab link surface (external link as sheet/split). nil = none open.
     @Published var surface: LinkSurface?
 
+    // Per-tab document outline (table of contents), pushed from the renderer on
+    // every render / live-reload; `activeHeadingID` is the scroll-spied section.
+    @Published var headings: [Heading] = []
+    @Published var activeHeadingID: String?
+
     private var watcher: FileWatcher?
 
     init(url: URL) {
