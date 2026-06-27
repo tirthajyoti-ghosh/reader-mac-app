@@ -114,6 +114,11 @@
       noteBkgColor: cssVar("--surface"),
       noteTextColor: cssVar("--text-2"),
       noteBorderColor: cssVar("--border"),
+      // ER diagram attribute rows: Mermaid's base theme defaults these to white /
+      // light-gray, which leaves our light text unreadable in dark mode. Map them
+      // to our surfaces so rows are dark in dark mode (unchanged in light).
+      attributeBackgroundColorOdd: cssVar("--surface"),
+      attributeBackgroundColorEven: cssVar("--bg"),
       fontFamily: cssVar("--mono") || "monospace",
     };
   }
