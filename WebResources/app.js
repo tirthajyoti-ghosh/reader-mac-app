@@ -24,6 +24,16 @@
     });
   }
 
+  // Mermaid renders node labels as markdown, so a `~x~` pair (e.g. an
+  // "approximately" like "~5s … (~512)") is read as strikethrough and prints
+  // "Unsupported markdown: del". Backslash-escape `~` so it renders literally.
+  // `~` is never structural in flowchart/sequence/er/state diagrams — but it DOES
+  // delimit generics in class diagrams (List~int~), so leave those untouched.
+  function escapeMermaidTilde(src) {
+    if (/\bclassDiagram\b/.test(src)) return src;
+    return src.replace(/(?<!\\)~/g, "\\~");
+  }
+
   /* fenced code: ```mermaid -> diagram container; else highlight.js -> palette */
   md.renderer.rules.fence = function (tokens, idx) {
     var t = tokens[idx];
@@ -35,6 +45,7 @@
       // Convert before escaping; Mermaid reads the div's textContent, so the
       // escaped `&lt;br/&gt;` decodes back to `<br/>` and becomes a line break.
       var src = t.content.replace(/\\n/g, "<br/>");
+      src = escapeMermaidTilde(src);
       return '<div class="mermaid">' + escapeHtml(src) + "</div>";
     }
     var body;
