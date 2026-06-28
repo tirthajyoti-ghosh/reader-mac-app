@@ -61,6 +61,7 @@ struct ReadingArea: View {
     @EnvironmentObject var model: AppModel
     @StateObject private var web = LinkWebModel()
     @State private var docFraction: CGFloat = 0.5   // doc's share of width in split
+    var isSelected: Bool = true
 
     var body: some View {
         let p = model.palette
@@ -72,8 +73,8 @@ struct ReadingArea: View {
             ZStack(alignment: .topLeading) {
                 HStack(spacing: 0) {
                     ZStack(alignment: .topTrailing) {
-                        MarkdownWebView(document: document, theme: model.theme, model: model)
-                        if model.findVisible { FindBar() }
+                        MarkdownWebView(document: document, theme: model.theme, model: model, isSelected: isSelected)
+                        if isSelected && model.findVisible { FindBar() }
                     }
                     .frame(maxWidth: .infinity)
 

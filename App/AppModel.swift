@@ -12,6 +12,15 @@ final class AppModel: ObservableObject {
     // Tabs
     @Published var documents: [Document] = []
     @Published var selectedID: UUID?
+    @Published var draggingTabID: UUID?   // tab being drag-reordered
+
+    /// Reorder a tab (drag-to-rearrange) — move `id` to before/at `target`'s slot.
+    func moveTab(_ id: UUID, before target: UUID) {
+        guard id != target,
+              let from = documents.firstIndex(where: { $0.id == id }),
+              let to = documents.firstIndex(where: { $0.id == target }) else { return }
+        documents.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+    }
 
     // Theme (persisted; default dark)
     @Published var theme: AppTheme

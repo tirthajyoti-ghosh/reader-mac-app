@@ -10,6 +10,10 @@ struct MarkdownWebView: NSViewRepresentable {
     @ObservedObject var document: Document
     let theme: AppTheme
     let model: AppModel
+    /// Whether this tab is the front one. Every open doc keeps its own mounted
+    /// webview (rendered once, scroll preserved); only the selected one drives
+    /// find / outline / scroll-to via `model.activeWebView`.
+    var isSelected: Bool = true
 
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
 
@@ -35,7 +39,7 @@ struct MarkdownWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        model.activeWebView = webView
+        if isSelected { model.activeWebView = webView }
         context.coordinator.model = model
         context.coordinator.apply(document: document, theme: theme)
     }

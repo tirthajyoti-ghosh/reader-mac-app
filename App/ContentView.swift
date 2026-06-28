@@ -24,9 +24,16 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     ZStack {
                         p.bg
-                        if let doc = model.selectedDocument {
-                            ReadingArea(document: doc)
-                        } else {
+                        // Every open doc keeps its own mounted webview so switching
+                        // tabs is instant (no re-render) and scroll is preserved.
+                        ForEach(model.documents) { doc in
+                            let selected = doc.id == model.selectedID
+                            ReadingArea(document: doc, isSelected: selected)
+                                .opacity(selected ? 1 : 0)
+                                .allowsHitTesting(selected)
+                                .zIndex(selected ? 1 : 0)
+                        }
+                        if model.documents.isEmpty {
                             EmptyState()
                         }
                     }
