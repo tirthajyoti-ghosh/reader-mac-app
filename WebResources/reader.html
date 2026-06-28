@@ -46,6 +46,31 @@
   ::selection { background: var(--accent-soft); }
   /* keep KaTeX inheriting our text color rather than its own */
   .md .katex { color: var(--text); }
+
+  /* mermaid render-failure fallback: show the source + reason, not an error box */
+  .md .mermaid-fallback {
+    margin: 1.4em 0;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    background: var(--code-bg);
+  }
+  .md .mermaid-fallback-head {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--ui); font-size: 12.5px;
+  }
+  .md .mermaid-fallback-head svg { color: var(--muted); flex: none; }
+  .md .mermaid-fallback-head .mf-label { color: var(--text-2); font-weight: 600; }
+  .md .mermaid-fallback-head .mf-err {
+    margin-left: 2px; color: var(--muted);
+    font-family: var(--mono); font-size: 11.5px;
+  }
+  .md .mermaid-fallback pre {
+    margin: 0; border: 0; border-radius: 0; background: transparent;
+  }
 </style>
 </head>
 <body>

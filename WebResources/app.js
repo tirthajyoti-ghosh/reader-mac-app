@@ -138,7 +138,51 @@
     if (!nodes.length) return Promise.resolve();
     nodes.forEach(function (n) { if (n.dataset.src === undefined) n.dataset.src = n.textContent; });
     initMermaid();
-    return window.mermaid.run({ nodes: nodes }).catch(function () {});
+    // Validate each diagram first: render the good ones, and for the bad ones
+    // show the source + the parse reason instead of Mermaid's "Syntax error" box.
+    var good = [];
+    return nodes.reduce(function (p, n) {
+      return p.then(function () {
+        return window.mermaid.parse(n.dataset.src)
+          .then(function () { good.push(n); })
+          .catch(function (e) { renderMermaidFallback(n, n.dataset.src, String((e && e.message) || e)); });
+      });
+    }, Promise.resolve()).then(function () {
+      if (good.length) return window.mermaid.run({ nodes: good, suppressErrors: true }).catch(function () {});
+    });
+  }
+
+  // Replace a failed diagram with a readable fallback: a small "couldn't render"
+  // header (+ the concise parse reason) above the original Mermaid source.
+  var WARN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+  function mermaidErrorSummary(msg) {
+    if (!msg) return "";
+    var line = (msg.match(/line (\d+)/i) || [])[1];
+    var got = (msg.match(/got '([^']+)'/) || [])[1];
+    if (line && got) return "line " + line + ": unexpected “" + got + "”";
+    var first = msg.split("\n").map(function (s) { return s.trim(); }).filter(Boolean)[0] || "";
+    return first.length > 90 ? first.slice(0, 90) + "…" : first;
+  }
+  function renderMermaidFallback(node, src, errMsg) {
+    var wrap = document.createElement("div");
+    wrap.className = "mermaid-fallback";
+    var head = document.createElement("div");
+    head.className = "mermaid-fallback-head";
+    head.innerHTML = WARN_SVG + '<span class="mf-label">Diagram couldn’t render</span>';
+    var summary = mermaidErrorSummary(errMsg);
+    if (summary) {
+      var em = document.createElement("span");
+      em.className = "mf-err";
+      em.textContent = summary;
+      head.appendChild(em);
+    }
+    var pre = document.createElement("pre");
+    var code = document.createElement("code");
+    code.textContent = src;
+    pre.appendChild(code);
+    wrap.appendChild(head);
+    wrap.appendChild(pre);
+    node.replaceWith(wrap);
   }
   function reRenderMermaid() {
     if (!window.mermaid) return;
