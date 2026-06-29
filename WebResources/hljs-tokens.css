@@ -49,5 +49,5 @@
 
 .md .hljs-deletion              { color: var(--callout-caution); }
 .md .hljs-emphasis              { font-style: italic; }
-.md .hljs-strong                { font-weight: 700; }
+.md .hljs-strong                { font-weight: var(--fw-semibold); }
 .md .hljs-link                  { color: var(--accent); }

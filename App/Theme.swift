@@ -38,7 +38,7 @@ struct Palette {
         muted:      Color(hex: 0x7B7974),
         border:     Color(hex: 0xE7E6E1),
         accent:     Color(hex: 0xC6613F),
-        accentSoft: Color(hex: 0xC6613F, opacity: 0.10),
+        accentSoft: Color(hex: 0xC6613F, opacity: 0.14),   // §7.4 — 14% both themes
         scrim:      Color(.sRGB, white: 0, opacity: 0.20)
     )
 }

@@ -12,22 +12,15 @@
 
 <style>
   /* Bundled OFL fonts — woff2 only, so the render is identical everywhere,
-     including the sandboxed (no-network) Quick Look extension. */
+     including the sandboxed (no-network) Quick Look extension. Source Serif 4
+     is the reading face (§7.2); the variable files cover --fw-normal..semibold. */
   @font-face {
-    font-family: "Source Sans 3"; font-style: normal; font-weight: 400;
-    font-display: swap; src: url("./fonts/SourceSans3-Regular.woff2") format("woff2");
+    font-family: "Source Serif 4"; font-style: normal; font-weight: 200 900;
+    font-display: swap; src: url("./fonts/SourceSerif4-VF.woff2") format("woff2");
   }
   @font-face {
-    font-family: "Source Sans 3"; font-style: italic; font-weight: 400;
-    font-display: swap; src: url("./fonts/SourceSans3-Italic.woff2") format("woff2");
-  }
-  @font-face {
-    font-family: "Source Sans 3"; font-style: normal; font-weight: 600;
-    font-display: swap; src: url("./fonts/SourceSans3-SemiBold.woff2") format("woff2");
-  }
-  @font-face {
-    font-family: "Source Sans 3"; font-style: normal; font-weight: 700;
-    font-display: swap; src: url("./fonts/SourceSans3-Bold.woff2") format("woff2");
+    font-family: "Source Serif 4"; font-style: italic; font-weight: 200 900;
+    font-display: swap; src: url("./fonts/SourceSerif4-Italic-VF.woff2") format("woff2");
   }
   @font-face {
     font-family: "JetBrains Mono"; font-style: normal; font-weight: 400;
@@ -38,39 +31,65 @@
     font-display: swap; src: url("./fonts/JetBrainsMono-Bold.woff2") format("woff2");
   }
 
-  /* page shell (from the comps) */
+  /* page shell — structural layout only; all visual values come from tokens */
   html, body { height: 100%; margin: 0; background: var(--bg); }
   .rdr { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   .scroll { flex: 1; overflow-y: auto; position: relative; }
   .md { font-optical-sizing: auto; }
   ::selection { background: var(--accent-soft); }
-  /* keep KaTeX inheriting our text color rather than its own */
-  .md .katex { color: var(--text); }
 
   /* mermaid render-failure fallback: show the source + reason, not an error box */
   .md .mermaid-fallback {
-    margin: 1.4em 0;
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
+    margin: 0 0 var(--para-space);
+    border: var(--hairline) solid var(--border);
+    border-radius: var(--radius);
     overflow: hidden;
     background: var(--code-bg);
   }
   .md .mermaid-fallback-head {
-    display: flex; align-items: center; gap: 7px;
-    padding: 8px 12px;
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    font-family: var(--ui); font-size: 12.5px;
+    border-bottom: var(--hairline) solid var(--border);
+    font-family: var(--ui-font); font-size: var(--fs-card-body);
   }
-  .md .mermaid-fallback-head svg { color: var(--muted); flex: none; }
-  .md .mermaid-fallback-head .mf-label { color: var(--text-2); font-weight: 600; }
+  .md .mermaid-fallback-head svg { color: var(--text-muted); flex: none; }
+  .md .mermaid-fallback-head .mf-label { color: var(--text-secondary); font-weight: var(--fw-semibold); }
   .md .mermaid-fallback-head .mf-err {
-    margin-left: 2px; color: var(--muted);
-    font-family: var(--mono); font-size: 11.5px;
+    color: var(--text-muted);
+    font-family: var(--mono); font-size: var(--fs-meta);
   }
   .md .mermaid-fallback pre {
     margin: 0; border: 0; border-radius: 0; background: transparent;
   }
+
+  /* peek extensions (the rest of .peek* lives in the contract): the neutral
+     offline favicon, and the compact rendered snippet for internal .md peeks */
+  .peek-favicon.offline { background: var(--border); color: var(--text-muted); }
+  .peek-snippet .md {
+    padding: 0; max-width: none;
+    font-size: var(--small-size); line-height: var(--lh-card-body);
+  }
+
+  /* ⌘F find highlights (app feature; not in the backbone contract) */
+  .md mark.find-hit {
+    background: var(--accent-line); color: var(--text);
+    border-radius: var(--radius-pill);
+  }
+  .md mark.find-hit.current { background: var(--accent); color: var(--bg); }
+
+  /* document path caption above the H1 (monospace meta line) */
+  .doc-path {
+    display: flex; align-items: center; gap: var(--sp-2);
+    margin-bottom: var(--sp-4);
+    font-family: var(--mono); font-size: var(--ui-small);
+    color: var(--text-muted); overflow: hidden;
+  }
+  .doc-path svg { flex: none; color: var(--text-muted); }
+  .doc-path .p-dir  { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc-path .p-name { flex: none; white-space: nowrap; }
+  .doc-path.revealable { cursor: pointer; }
+  .doc-path.revealable:hover { color: var(--text-secondary); }
 </style>
 </head>
 <body>

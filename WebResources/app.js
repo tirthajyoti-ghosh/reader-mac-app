@@ -120,10 +120,10 @@
       tertiaryColor: cssVar("--code-bg"),
       secondaryBorderColor: cssVar("--border"),
       tertiaryBorderColor: cssVar("--border"),
-      lineColor: cssVar("--muted"),
-      textColor: cssVar("--text-2"),
+      lineColor: cssVar("--text-muted"),
+      textColor: cssVar("--text-secondary"),
       noteBkgColor: cssVar("--surface"),
-      noteTextColor: cssVar("--text-2"),
+      noteTextColor: cssVar("--text-secondary"),
       noteBorderColor: cssVar("--border"),
       // ER diagram attribute rows: Mermaid's base theme defaults these to white /
       // light-gray, which leaves our light text unreadable in dark mode. Map them
@@ -345,7 +345,7 @@
 
   var MD_EXT = /\.(md|markdown|mdown|mkd|mdwn|mdtext)(?:[#?].*)?$/i;
   var WIFI_OFF_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5 12.5a11 11 0 0 1 14 0"/><path d="M8.5 16a6 6 0 0 1 7 0"/><path d="M12 20h.01"/><path d="m2 2 20 20"/></svg>';
-  var DOC_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>';
+  var DOC_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>';
 
   function slugify(s) {
     return (s || "").toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -478,9 +478,9 @@
     card.className = "peek" + (d.offline ? " offline" : "");
     var html;
     if (d.offline) {
-      html = '<div class="peek-body"><div class="peek-head"><span class="peek-favicon" style="background:var(--border);color:var(--muted);">↗</span><span class="peek-domain"></span></div><div class="peek-title"></div><div class="peek-offline-note">' + WIFI_OFF_SVG + 'Preview unavailable offline</div></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="browser">Browser ↗</button></div>';
+      html = '<div class="peek-body"><div class="peek-head"><span class="peek-favicon offline">↗</span><span class="peek-domain"></span></div><div class="peek-title"></div><div class="peek-offline-note">' + WIFI_OFF_SVG + 'Preview unavailable offline</div></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="browser">Browser ↗</button></div>';
     } else if (d.kind === "internal") {
-      html = '<div class="peek-body"><div class="peek-head">' + DOC_SVG + '<span class="peek-domain"></span></div></div><div class="peek-snippet"><article class="md" style="padding:0;max-width:none;font-size:14px;line-height:1.55;"></article></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="split">Open in split</button></div>';
+      html = '<div class="peek-body"><div class="peek-head">' + DOC_SVG + '<span class="peek-domain"></span></div></div><div class="peek-snippet"><article class="md"></article></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="split">Open in split</button></div>';
     } else {
       html = (d.image ? '<div class="peek-thumb" data-img></div>' : "") + '<div class="peek-body"><div class="peek-head"><span class="peek-favicon" data-fav></span><span class="peek-domain"></span></div><div class="peek-title"></div><div class="peek-desc"></div></div><div class="peek-actions"><button class="peek-btn primary" data-act="open">Open</button><span class="sep">·</span><button class="peek-btn" data-act="split">Open in split</button><span class="sep">·</span><button class="peek-btn" data-act="browser">Browser ↗</button></div>';
     }
@@ -500,7 +500,10 @@
       });
     });
     card.style.position = "fixed"; card.style.zIndex = "60";
-    card.style.left = Math.max(8, Math.min(peekX, window.innerWidth - (d.offline ? 296 : 356))) + "px";
+    // Width comes from the token contract (--peek-width / --peek-offline-w); the
+    // small insets below are cursor-follow geometry, not themeable design values.
+    var cardW = parseInt(cssVar(d.offline ? "--peek-offline-w" : "--peek-width"), 10) || (d.offline ? 280 : 340);
+    card.style.left = Math.max(8, Math.min(peekX, window.innerWidth - cardW - 16)) + "px";
     card.style.top = Math.min(peekY + 12, window.innerHeight - 250) + "px";
     card.addEventListener("mouseleave", hidePeek);
     document.body.appendChild(card);
