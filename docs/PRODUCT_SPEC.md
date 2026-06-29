@@ -4,12 +4,12 @@
 
 | Field | Value |
 |---|---|
-| Document status | **v1.1 — signed off** |
-| Date | 2026-06-28 |
+| Document status | **v1.2 — signed off** |
+| Date | 2026-06-29 |
 | Owner | Tirtha |
 | Platform | macOS 14+ (Apple Silicon + Intel) |
 | License / model | Open source, free |
-| Revision | v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
+| Revision | v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
 | Supersedes | All prior ad-hoc decisions in design/build threads |
 
 ---
@@ -111,7 +111,7 @@ Each layer is the ground the next stands on. Layer 3 is a near-pure function of 
 
 ## 7. The Token Contract (the backbone)
 
-The canonical, complete set of CSS custom properties. Everything visual reads from these. Colors are the **exact tokens extracted from Claude Desktop**. Core groups — **Color**, **Type**, **Reading ergonomics** (§7.1–7.3) — plus **Derived**, **Layout & metrics**, **Spacing**, **Chrome & code type**, **Elevation**, and **Callout mapping** (§7.4–7.9, added in v1.1). With §7.4–7.9 in place, **no visual value lives outside this contract** — the renderer carries no "non-contract constants."
+The canonical, complete set of CSS custom properties. Everything visual reads from these. Colors are the **exact tokens extracted from Claude Desktop**. Core groups — **Color**, **Type**, **Reading ergonomics** (§7.1–7.3) — plus **Extended radii**, **Spacing**, **Layout & dimensions**, **Chrome/code/dense type**, **Elevation & scrim**, and **Semantic & derived** (§7.4–7.9). With §7.4–7.9 in place, **no visual value lives outside this contract** — the renderer carries no "non-contract constants." The implementation may define additional finer-grained component tokens *within* these groups; that is compliant with I7 so long as nothing is hardcoded.
 
 > Borders: Claude paints borders as the contrast color at ~8–10% opacity. The solid hexes below are the practical equivalent; an alternate `hsl(0 0% 100% / .08)` (dark) / `hsl(0 0% 0% / .08)` (light) is acceptable for a subtler line.
 
@@ -167,14 +167,21 @@ The part most apps hardcode — and the reason the contract is the backbone, bec
 | `--heading-leading` | `1.25` | Heading line-height |
 | `--radius` / `--radius-lg` | `8px / 12px` | Corner radii |
 
-### 7.4 Derived tokens *(v1.1 — computed from `--accent`; retint automatically with theme)*
+### 7.4 Extended radii *(complements §7.3 `--radius` / `--radius-lg`)*
 
-| Token | Definition | Role |
+| Token | Default | Role |
 |---|---|---|
-| `--accent-soft` | `color-mix(in srgb, var(--accent) 14%, transparent)` | Washes, selected rows, focus rings |
-| `--accent-line` | `color-mix(in srgb, var(--accent) 42%, transparent)` | Link underline |
+| `--radius-pill` | `4px` | Inline code, cite chip, small affordances |
+| `--radius-ctl` | `6px` | Icon buttons, toggles, outline rows |
+| `--radius-round` | `999px` | Breadcrumb pill |
 
-### 7.5 Layout & metrics *(v1.1)*
+### 7.5 Spacing scale
+
+`--sp-1` … `--sp-16` = `4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64` px. All paddings, margins, and gaps reference this scale.
+
+### 7.6 Layout & dimensions
+
+Canonical layout tokens (the implementation also defines finer component tokens — control sizes, list indents, hit-areas — within this group; all tokenized):
 
 | Token | Default | Role |
 |---|---|---|
@@ -189,41 +196,40 @@ The part most apps hardcode — and the reason the contract is the backbone, bec
 | `--outline-indent` | `14px` | Per-level indent |
 | `--divider-w` | `1px` | Split divider line |
 | `--divider-hit` | `11px` | Split divider hit area |
-| `--radius-pill` | `4px` | Inline code / chips (third radius) |
 
-### 7.6 Spacing scale *(v1.1)*
-
-`--sp-1` … `--sp-16` = `4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64` px. All paddings, margins, and gaps reference this scale.
-
-### 7.7 Chrome & code type *(v1.1 — never used in the reading surface; chrome uses `--ui-font`)*
+### 7.7 Chrome, code & dense type *(sizes outside the reading surface; chrome uses `--ui-font`)*
 
 | Token | Default | Role |
 |---|---|---|
-| `--ui-size` | `13px` | Chrome body |
-| `--ui-small` | `12px` | Chrome small |
+| `--ui-size` | `13px` | Chrome body (sidebar rows, tabs, outline rows) |
+| `--ui-small` | `12px` | Chrome small (meta, counts, buttons) |
 | `--ui-label` | `11px` | Uppercase section headers |
+| `--small-size` | `15px` | `.md small` / captions |
 | `--code-size` | `14px` | Block code |
 | `--code-leading` | `1.65` | Block code line-height |
-| `--small-size` | `15px` | `.md small` / captions |
-| `--fs-dense` | `16px` | **Decision:** tables + callout bodies — deliberately one notch below `--fs-base` (17px) |
+| `--fs-dense` | `16px` | Table cells + callout bodies — deliberately one notch below `--fs-base` (17px) |
 
-### 7.8 Elevation & scrim *(v1.1)*
+*(Implementation also defines card/meta sizes and component line-heights — `--lh-*` — within this group.)*
+
+### 7.8 Elevation & scrim *(themed)*
 
 | Token | Dark | Light | Role |
 |---|---|---|---|
-| `--shadow` | `0 8px 28px rgb(0 0 0 / .28)` | `0 8px 28px rgb(0 0 0 / .12)` | Find bar, peek card |
-| `--shadow-lg` | `0 12px 32px rgb(0 0 0 / .34)` | `0 12px 32px rgb(0 0 0 / .14)` | Slide-over sheet |
+| `--shadow` | `0 8px 28px rgb(0 0 0 / .28)` | `0 8px 28px rgb(0 0 0 / .12)` | Find bar, raised controls |
+| `--shadow-lg` | `0 16px 44px rgb(0 0 0 / .34)` | `0 16px 44px rgb(0 0 0 / .15)` | Peek card, slide-over sheet |
 | `--scrim` | `hsl(0 0% 0% / .46)` | `hsl(0 0% 0% / .20)` | Dim behind the sheet |
+| `--focus-ring` | `0 0 0 3px var(--accent-soft)` | (same) | Find / filter focus ring |
 
-### 7.9 Callout hue mapping *(v1.1 — maps to existing tokens; no new shades)*
+### 7.9 Semantic & derived *(computed from §7.1 `--accent`; no standalone shades — retint with theme)*
 
-| Callout | Token |
-|---|---|
-| `note` | `--text-muted` |
-| `tip` | `--syntax-string` |
-| `important` | `--accent` |
-| `warning` | `--syntax-number` |
-| `caution` | `--accent-emphasis` |
+| Token | Definition | Role |
+|---|---|---|
+| `--accent-soft` | `color-mix(in srgb, var(--accent) 14%, transparent)` | Washes, selected rows, focus rings |
+| `--accent-line` | `color-mix(in srgb, var(--accent) 42%, transparent)` | Link underline |
+| `--syntax-punct` | `var(--text-secondary)` | Code punctuation (no §7.1 hue) |
+| `--link-blue` | dark `#5AA2E6` / light `#2F73C7` | Inactive blue alternate (§12); links use `--accent` by default |
+
+**Callout hue mapping** (maps to existing tokens; no new shades): `note` → `--text-muted` · `tip` → `--syntax-string` · `important` → `--accent` · `warning` → `--syntax-number` · `caution` → `--accent-emphasis`.
 
 ---
 
@@ -247,6 +253,7 @@ The part most apps hardcode — and the reason the contract is the backbone, bec
   - [ ] Switching the token block is the *only* change required to retheme; no other CSS edits needed.
 
 > **First implementation action:** harden the contract — convert every stray hardcoded value (e.g. `46rem`, `1.72`, `17px`) into a token. No higher-layer work begins until 8.0.2 acceptance passes.
+> **Status (v1.2):** §8.0.2 audit **passed** — `WebResources/design-tokens.css` is the single source of truth; Layers 1–2 reconciled to §7.
 
 ---
 
@@ -344,7 +351,7 @@ Positioning at 1.0: *"A calm, private place to read what AI gives you — and it
 
 | Release | Contents | Definition of done |
 |---|---|---|
-| **0.x (internal)** | Layers 0–2 | Backbone audit passes (8.0.2); core reading + links + outline solid. |
+| **0.x (internal)** | Layers 0–2 | Backbone audit passes (8.0.2); core reading + links + outline solid. **(Done — v1.2.)** |
 | **1.0** | Layers 0–3 | All Layer 0–3 acceptance criteria pass; positioning copy + repo README + screenshots ready. |
 | **1.x** | Layer 4 | Per-feature acceptance; no regression to Invariants. |
 | **2.x** | Layer 5 | Gated on community demand. |
@@ -383,7 +390,7 @@ Positioning at 1.0: *"A calm, private place to read what AI gives you — and it
 - Link default = **slide-over sheet**; live previews **app-only**, offline fallback in Quick Look.
 - 1.0 = **Layers 0–3**.
 - **Link color default = clay (`--accent`)** (v1.1); blue retained as an inactive `--link-blue` alternate token, swappable without other edits.
-- **Token Contract extended (v1.1, §7.4–7.9):** derived accents, layout & metrics, spacing scale, chrome/code type (incl. `--fs-dense` = 16px for tables/callout bodies), elevation (`--shadow`/`--shadow-lg`), and callout hue mapping. No visual value now lives outside §7.
+- **Token Contract extended (v1.1, §7.4–7.9)** and **grouping reconciled to the shipped `design-tokens.css` (v1.2)**: extended radii, spacing scale, layout & dimensions, chrome/code/dense type (incl. `--fs-dense` = 16px for tables/callout bodies), elevation & scrim, and semantic/derived (derived accents + callout mapping). No visual value lives outside §7.
 
 **Open**
 - [ ] Final product **name** (Reader vs **Margin** vs other).
@@ -404,4 +411,4 @@ By signing, the parties commit to the **Invariants (§5)**, the **Token Contract
 
 ---
 
-*End of specification — Reader v1.1 (signed off), 2026-06-28.*
+*End of specification — Reader v1.2 (signed off), 2026-06-29.*
