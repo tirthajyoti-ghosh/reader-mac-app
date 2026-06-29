@@ -4,11 +4,12 @@
 
 | Field | Value |
 |---|---|
-| Document status | **Draft v1.0 — for sign-off** |
+| Document status | **v1.1 — signed off** |
 | Date | 2026-06-28 |
 | Owner | Tirtha |
 | Platform | macOS 14+ (Apple Silicon + Intel) |
 | License / model | Open source, free |
+| Revision | v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
 | Supersedes | All prior ad-hoc decisions in design/build threads |
 
 ---
@@ -110,7 +111,7 @@ Each layer is the ground the next stands on. Layer 3 is a near-pure function of 
 
 ## 7. The Token Contract (the backbone)
 
-The canonical, complete set of CSS custom properties. Everything visual reads from these. Colors are the **exact tokens extracted from Claude Desktop**. The contract has three groups: **Color**, **Type**, **Reading ergonomics**.
+The canonical, complete set of CSS custom properties. Everything visual reads from these. Colors are the **exact tokens extracted from Claude Desktop**. Core groups — **Color**, **Type**, **Reading ergonomics** (§7.1–7.3) — plus **Derived**, **Layout & metrics**, **Spacing**, **Chrome & code type**, **Elevation**, and **Callout mapping** (§7.4–7.9, added in v1.1). With §7.4–7.9 in place, **no visual value lives outside this contract** — the renderer carries no "non-contract constants."
 
 > Borders: Claude paints borders as the contrast color at ~8–10% opacity. The solid hexes below are the practical equivalent; an alternate `hsl(0 0% 100% / .08)` (dark) / `hsl(0 0% 0% / .08)` (light) is acceptable for a subtler line.
 
@@ -166,6 +167,64 @@ The part most apps hardcode — and the reason the contract is the backbone, bec
 | `--heading-leading` | `1.25` | Heading line-height |
 | `--radius` / `--radius-lg` | `8px / 12px` | Corner radii |
 
+### 7.4 Derived tokens *(v1.1 — computed from `--accent`; retint automatically with theme)*
+
+| Token | Definition | Role |
+|---|---|---|
+| `--accent-soft` | `color-mix(in srgb, var(--accent) 14%, transparent)` | Washes, selected rows, focus rings |
+| `--accent-line` | `color-mix(in srgb, var(--accent) 42%, transparent)` | Link underline |
+
+### 7.5 Layout & metrics *(v1.1)*
+
+| Token | Default | Role |
+|---|---|---|
+| `--sidebar-width` | `248px` | File sidebar |
+| `--tabbar-height` | `40px` | Tab bar |
+| `--progress-height` | `3px` | Reading-progress hairline |
+| `--peek-width` | `340px` | Hover peek card |
+| `--sheet-width` | `60%` | Slide-over sheet width |
+| `--sheet-max` | `760px` | Slide-over sheet max width |
+| `--split-min` | `340px` | Min pane width in split |
+| `--outline-width` | `256px` | Outline panel |
+| `--outline-indent` | `14px` | Per-level indent |
+| `--divider-w` | `1px` | Split divider line |
+| `--divider-hit` | `11px` | Split divider hit area |
+| `--radius-pill` | `4px` | Inline code / chips (third radius) |
+
+### 7.6 Spacing scale *(v1.1)*
+
+`--sp-1` … `--sp-16` = `4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64` px. All paddings, margins, and gaps reference this scale.
+
+### 7.7 Chrome & code type *(v1.1 — never used in the reading surface; chrome uses `--ui-font`)*
+
+| Token | Default | Role |
+|---|---|---|
+| `--ui-size` | `13px` | Chrome body |
+| `--ui-small` | `12px` | Chrome small |
+| `--ui-label` | `11px` | Uppercase section headers |
+| `--code-size` | `14px` | Block code |
+| `--code-leading` | `1.65` | Block code line-height |
+| `--small-size` | `15px` | `.md small` / captions |
+| `--fs-dense` | `16px` | **Decision:** tables + callout bodies — deliberately one notch below `--fs-base` (17px) |
+
+### 7.8 Elevation & scrim *(v1.1)*
+
+| Token | Dark | Light | Role |
+|---|---|---|---|
+| `--shadow` | `0 8px 28px rgb(0 0 0 / .28)` | `0 8px 28px rgb(0 0 0 / .12)` | Find bar, peek card |
+| `--shadow-lg` | `0 12px 32px rgb(0 0 0 / .34)` | `0 12px 32px rgb(0 0 0 / .14)` | Slide-over sheet |
+| `--scrim` | `hsl(0 0% 0% / .46)` | `hsl(0 0% 0% / .20)` | Dim behind the sheet |
+
+### 7.9 Callout hue mapping *(v1.1 — maps to existing tokens; no new shades)*
+
+| Callout | Token |
+|---|---|
+| `note` | `--text-muted` |
+| `tip` | `--syntax-string` |
+| `important` | `--accent` |
+| `warning` | `--syntax-number` |
+| `caution` | `--accent-emphasis` |
+
 ---
 
 ## 8. Feature specification (by layer)
@@ -183,8 +242,8 @@ The part most apps hardcode — and the reason the contract is the backbone, bec
 
 **8.0.2 Token Contract.** Implement Section 7 as the single source of truth.
 - Acceptance:
-  - [ ] Every token in Section 7 exists with the specified default for both themes.
-  - [ ] **Audit passes: zero hardcoded visual values** (color/font/size/spacing/width/radius) outside the contract in `reader.html`/CSS.
+  - [ ] Every token in Section 7 (incl. §7.4–7.9) exists with the specified default for both themes.
+  - [ ] **Audit passes: zero hardcoded visual values** (color/font/size/spacing/width/shadow/radius) outside the contract in `reader.html`/CSS.
   - [ ] Switching the token block is the *only* change required to retheme; no other CSS edits needed.
 
 > **First implementation action:** harden the contract — convert every stray hardcoded value (e.g. `46rem`, `1.72`, `17px`) into a token. No higher-layer work begins until 8.0.2 acceptance passes.
@@ -323,10 +382,11 @@ Positioning at 1.0: *"A calm, private place to read what AI gives you — and it
 - Colors = **exact extracted Claude Desktop tokens** (Section 7.1).
 - Link default = **slide-over sheet**; live previews **app-only**, offline fallback in Quick Look.
 - 1.0 = **Layers 0–3**.
+- **Link color default = clay (`--accent`)** (v1.1); blue retained as an inactive `--link-blue` alternate token, swappable without other edits.
+- **Token Contract extended (v1.1, §7.4–7.9):** derived accents, layout & metrics, spacing scale, chrome/code type (incl. `--fs-dense` = 16px for tables/callout bodies), elevation (`--shadow`/`--shadow-lg`), and callout hue mapping. No visual value now lives outside §7.
 
 **Open**
 - [ ] Final product **name** (Reader vs **Margin** vs other).
-- [ ] Link color default: **clay (`--accent`)** vs optional **blue** alternate.
 - [ ] Shareable-link (8.3.3) — include in 1.0 or defer to 1.x?
 - [ ] Sandboxed/notarized distribution timing (affects entitlements + previews network).
 
@@ -344,4 +404,4 @@ By signing, the parties commit to the **Invariants (§5)**, the **Token Contract
 
 ---
 
-*End of specification — Reader v1.0 (Draft for sign-off), 2026-06-28.*
+*End of specification — Reader v1.1 (signed off), 2026-06-28.*
