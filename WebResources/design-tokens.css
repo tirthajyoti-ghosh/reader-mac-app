@@ -78,7 +78,8 @@
   --fw-semibold: 650;
 
   /* ---- §7.3 Reading ergonomics (accessibility controls bind to these) ---- */
-  --measure:         46rem;
+  --measure:         46rem;   /* optional capped column width (accessibility "reading width"); not applied by default */
+  --reading-pad-x:   clamp(var(--sp-10), 7vw, 160px);  /* full-width reading panel: responsive side padding */
   --leading:         1.72;
   --para-space:      1.05em;
   --letter-spacing:  0;
@@ -226,9 +227,9 @@
 .md {
   font-family: var(--font);
   color: var(--text);
-  max-width: var(--measure);
+  max-width: none;                /* full-width reading panel … */
   margin: 0 auto;
-  padding: var(--sp-12) var(--sp-8) var(--reading-foot);
+  padding: var(--sp-12) var(--reading-pad-x) var(--reading-foot);  /* … with responsive side padding */
   font-size: var(--fs-base);
   line-height: var(--leading);
   letter-spacing: var(--letter-spacing);

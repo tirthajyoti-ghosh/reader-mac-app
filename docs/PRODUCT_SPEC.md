@@ -9,7 +9,7 @@
 | Owner | Tirtha |
 | Platform | macOS 14+ (Apple Silicon + Intel) |
 | License / model | Open source, free |
-| Revision | v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
+| Revision | v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.2a (2026-06-30) — reading layout = full-width panel with responsive side padding (`--reading-pad-x`); `--measure` demoted to optional cap (§7.3). v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
 | Supersedes | All prior ad-hoc decisions in design/build threads |
 
 ---
@@ -159,7 +159,8 @@ The part most apps hardcode — and the reason the contract is the backbone, bec
 
 | Token | Default | Role |
 |---|---|---|
-| `--measure` | `46rem` | Reading column max width |
+| `--reading-pad-x` | `clamp(--sp-10, 7vw, 160px)` | **Reading layout (default): full-width panel with responsive side padding.** The reading column is full-width (`max-width: none`) with this gutter, not a fixed centered column. |
+| `--measure` | `46rem` | Optional capped column width — the accessibility "reading width" control (§8.3.2) applies it; **not applied by default.** |
 | `--leading` | `1.72` | Body line-height |
 | `--para-space` | `1.05em` | Paragraph spacing |
 | `--letter-spacing` | `0` | Tracking |
@@ -391,6 +392,7 @@ Positioning at 1.0: *"A calm, private place to read what AI gives you — and it
 - 1.0 = **Layers 0–3**.
 - **Link color default = clay (`--accent`)** (v1.1); blue retained as an inactive `--link-blue` alternate token, swappable without other edits.
 - **Token Contract extended (v1.1, §7.4–7.9)** and **grouping reconciled to the shipped `design-tokens.css` (v1.2)**: extended radii, spacing scale, layout & dimensions, chrome/code/dense type (incl. `--fs-dense` = 16px for tables/callout bodies), elevation & scrim, and semantic/derived (derived accents + callout mapping). No visual value lives outside §7.
+- **Reading layout (v1.2a, §7.3):** the reading column is a **full-width panel with responsive side padding** (`--reading-pad-x` = `clamp(--sp-10, 7vw, 160px)`), not a fixed centered column. `--measure` (46rem) is retained as the **optional** capped-width control the accessibility "reading width" feature (§8.3.2) applies — it is not applied by default. (Restores the agreed reading-ergonomics layout that the A2 token ingest had reverted.)
 
 **Open**
 - [ ] Final product **name** (Reader vs **Margin** vs other).
