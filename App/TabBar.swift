@@ -28,6 +28,7 @@ struct TopBar: View {
             Spacer(minLength: 0)
             HStack(spacing: 2) {
                 ThemeToggle()
+                SettingsToggle()
                 OutlineToggle()
             }
             .padding(.horizontal, 12)
@@ -149,7 +150,7 @@ private struct ThemeToggle: View {
         Button {
             model.toggleTheme()
         } label: {
-            Image(systemName: model.theme == .dark ? "moon" : "sun.max")
+            Image(systemName: model.colorScheme == .dark ? "moon" : "sun.max")
                 .font(.system(size: 14, weight: .medium))
                 .frame(width: 30, height: 30)
                 .foregroundColor(hover ? p.text : p.muted)

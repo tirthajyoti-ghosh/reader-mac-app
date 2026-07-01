@@ -34,6 +34,8 @@ struct ReaderApp: App {
                     .keyboardShortcut("\\", modifiers: .command)
                 Button("Toggle Outline") { model.toggleOutline() }
                     .keyboardShortcut("o", modifiers: [.command, .option])
+                Button("Reading Settings") { model.toggleSettings() }
+                    .keyboardShortcut(",", modifiers: .command)
                 Button("Toggle Light / Dark") { model.toggleTheme() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Button("Refresh Sidebar") { model.reloadSidebar() }

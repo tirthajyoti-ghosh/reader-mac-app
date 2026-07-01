@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reader</title>
 
-<!-- The deliverable stylesheet (single source of truth) + KaTeX + hljs mapping -->
+<!-- The deliverable stylesheet (single source of truth) + built-in themes + KaTeX + hljs mapping.
+     Load order matters: design-tokens.css FIRST (contract + defaults), then themes.css (color-only overrides). -->
 <link rel="stylesheet" href="./design-tokens.css">
+<link rel="stylesheet" href="./themes.css">
 <link rel="stylesheet" href="./vendor/katex/katex.min.css">
 <link rel="stylesheet" href="./hljs-tokens.css">
 

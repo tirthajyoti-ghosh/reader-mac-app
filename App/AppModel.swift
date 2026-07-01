@@ -22,8 +22,16 @@ final class AppModel: ObservableObject {
         documents.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
     }
 
-    // Theme (persisted; default dark)
-    @Published var theme: AppTheme
+    // Theme (Track T §8.3.1): a theme id (themes.css) + live single-token tweaks +
+    // optional imported custom theme. The chrome palette is dynamic — derived from
+    // the active theme so the whole app retints per theme.
+    @Published var themeId: String
+    @Published var tweaks: [String: String] = [:]
+    @Published var customCSS: String?
+    @Published var settingsOpen = false
+    @Published private(set) var palette: Palette = .dark
+    let builtinThemes: [BuiltinTheme]
+    private let liveWebViews = NSHashTable<WKWebView>.weakObjects()
 
     // Sidebar
     @Published var sidebarVisible = true
@@ -55,11 +63,11 @@ final class AppModel: ObservableObject {
 
     private var folderWatcher: FileWatcher?
 
-    var palette: Palette { theme.palette }
     var selectedDocument: Document? { documents.first { $0.id == selectedID } }
 
     private init() {
-        self.theme = UserDefaults.standard.string(forKey: "theme").flatMap(AppTheme.init(rawValue:)) ?? .dark
+        self.themeId = UserDefaults.standard.string(forKey: "themeId") ?? "claude-dark"
+        self.builtinThemes = Theming.parse(Theming.loadThemesCSS())
         if let saved = UserDefaults.standard.string(forKey: "sidebarFolder") {
             self.sidebarFolder = URL(fileURLWithPath: saved)
         } else {
@@ -74,8 +82,11 @@ final class AppModel: ObservableObject {
         if sw > 0 { self.sidebarWidth = CGFloat(sw) }
         let ow = UserDefaults.standard.double(forKey: "outlineWidth")
         if ow > 0 { self.outlineWidth = CGFloat(ow) }
+        if let t = UserDefaults.standard.dictionary(forKey: "themeTweaks") as? [String: String] { self.tweaks = t }
+        self.customCSS = UserDefaults.standard.string(forKey: "customThemeCSS")
         reloadSidebar()
         watchFolder()
+        updatePalette()
     }
 
     // MARK: - Opening
@@ -148,11 +159,98 @@ final class AppModel: ObservableObject {
         if let id = selectedID { closeDocument(id) }
     }
 
-    // MARK: - Theme
+    // MARK: - Theme (Track T)
 
+    var activeTheme: BuiltinTheme? { builtinThemes.first { $0.id == themeId } }
+    var colorScheme: ColorScheme { (activeTheme?.isLight ?? false) ? .light : .dark }
+
+    /// Recompute the native chrome palette from the active theme (+ accent tweak).
+    func updatePalette() {
+        let t = activeTheme ?? builtinThemes.first(where: { $0.id == "claude-dark" })
+        guard let t else { palette = .dark; return }
+        palette = Palette.from(t.colors, isLight: t.isLight, accentHex: tweaks["--accent"])
+    }
+
+    /// A newly-loaded webview: sync it to the current theme + tweaks + custom theme.
+    func register(webView: WKWebView) { liveWebViews.add(webView) }
+    func pushTheming(to wv: WKWebView) {
+        wv.evaluateJavaScript("window.__applyTheme('\(themeId)')")
+        if let css = customCSS { wv.evaluateJavaScript("window.__applyCustom(\(jsStringLiteral(css)))") }
+        for (k, v) in tweaks { wv.evaluateJavaScript("window.__setOverride('\(k)', \(jsStringLiteral(v)))") }
+    }
+    private func evalAll(_ js: String) { for wv in liveWebViews.allObjects { wv.evaluateJavaScript(js) } }
+
+    func selectTheme(_ id: String) {
+        guard id != themeId else { return }
+        themeId = id
+        UserDefaults.standard.set(id, forKey: "themeId")
+        evalAll("window.__applyTheme('\(id)')")
+        updatePalette()
+    }
+    /// Sun/moon: flip the current theme's light↔dark pair (fall back to Claude).
     func toggleTheme() {
-        theme = (theme == .dark) ? .light : .dark
-        UserDefaults.standard.set(theme.rawValue, forKey: "theme")
+        selectTheme(Theming.pairs[themeId] ?? (colorScheme == .dark ? "claude-light" : "claude-dark"))
+    }
+
+    // MARK: - No-code tweaks (single-token overrides, live + persisted)
+
+    func setTweak(_ token: String, _ value: String) {
+        tweaks[token] = value
+        UserDefaults.standard.set(tweaks, forKey: "themeTweaks")
+        evalAll("window.__setOverride('\(token)', \(jsStringLiteral(value)))")
+        if token == "--accent" { updatePalette() }
+    }
+    func clearTweak(_ token: String) {
+        guard tweaks[token] != nil else { return }
+        tweaks[token] = nil
+        UserDefaults.standard.set(tweaks, forKey: "themeTweaks")
+        evalAll("window.__clearOverride('\(token)')")
+        if token == "--accent" { updatePalette() }
+    }
+    func clearAllTweaks() {
+        guard !tweaks.isEmpty else { return }
+        tweaks = [:]
+        UserDefaults.standard.set(tweaks, forKey: "themeTweaks")
+        evalAll("window.__clearOverrides()")
+        updatePalette()
+    }
+
+    // MARK: - Custom theme import (§8.5.1 security: token declarations only)
+
+    /// Returns an error message on rejection, or nil on success.
+    func importCustomTheme(_ url: URL) -> String? {
+        guard let raw = try? String(contentsOf: url, encoding: .utf8) else { return "Couldn't read the file." }
+        let lower = raw.lowercased()
+        if lower.contains("@import") { return "Rejected: @import isn't allowed in a theme file." }
+        if raw.range(of: #"url\(\s*['"]?\s*(https?:)?//"#, options: .regularExpression) != nil {
+            return "Rejected: remote url() / network references aren't allowed."
+        }
+        let decls = extractTokenDecls(raw)
+        guard !decls.isEmpty else { return "No theme tokens (`--…`) found in the file." }
+        let css = ":root {\n" + decls.joined(separator: "\n") + "\n}"
+        customCSS = css
+        UserDefaults.standard.set(css, forKey: "customThemeCSS")
+        evalAll("window.__applyCustom(\(jsStringLiteral(css)))")
+        return nil
+    }
+    func clearCustomTheme() {
+        customCSS = nil
+        UserDefaults.standard.removeObject(forKey: "customThemeCSS")
+        evalAll("window.__clearCustom()")
+    }
+    /// Extract only `--token: value;` declarations; drop any value with url() (belt-and-suspenders).
+    private func extractTokenDecls(_ css: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: #"(--[A-Za-z0-9-]+)\s*:\s*([^;{}]+);"#) else { return [] }
+        let ns = css as NSString
+        var out: [String] = []
+        re.enumerateMatches(in: css, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
+            guard let m else { return }
+            let name = ns.substring(with: m.range(at: 1))
+            let val = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
+            if val.lowercased().contains("url(") || val.contains("@") { return }
+            out.append("  \(name): \(val);")
+        }
+        return out
     }
 
     func toggleSidebar() {
@@ -164,6 +262,12 @@ final class AppModel: ObservableObject {
     func toggleOutline() {
         outlineVisible.toggle()
         UserDefaults.standard.set(outlineVisible, forKey: "outlineVisible")
+    }
+
+    /// Settings popover ↔ a link sheet are mutually exclusive (integration fix #3).
+    func toggleSettings() {
+        settingsOpen.toggle()
+        if settingsOpen { selectedDocument?.surface = nil }
     }
 
     /// Scroll the front document to a heading (no reload — the webview stays mounted).

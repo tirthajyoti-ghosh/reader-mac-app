@@ -73,7 +73,7 @@ struct ReadingArea: View {
             ZStack(alignment: .topLeading) {
                 HStack(spacing: 0) {
                     ZStack(alignment: .topTrailing) {
-                        MarkdownWebView(document: document, theme: model.theme, model: model, isSelected: isSelected)
+                        MarkdownWebView(document: document, model: model, isSelected: isSelected)
                         if isSelected && model.findVisible { FindBar() }
                     }
                     .frame(maxWidth: .infinity)

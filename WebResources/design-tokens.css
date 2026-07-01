@@ -1,6 +1,6 @@
 /* ============================================================================
    READER — design-tokens.css
-   THE TOKEN CONTRACT · canonical, per PRODUCT_SPEC.md §7 (signed-off draft v1.0)
+   THE TOKEN CONTRACT · canonical, per PRODUCT_SPEC.md §7 (v1.2 — §7.1–7.10, both themes)
 
    SINGLE SOURCE OF TRUTH for every visual property. Invariant I7 / §6.3:
    no color, font, size, spacing, width, radius, or shadow is hardcoded outside
@@ -8,7 +8,8 @@
 
    Colors are the EXACT tokens extracted from Claude Desktop.
    Structure: §7.1–7.3 (color / type / ergonomics) + §7.4–7.9 (radii / spacing /
-   dimensions / chrome+code type / elevation / semantic). :root = dark (default);
+   dimensions / chrome+code type / elevation / semantic) + §7.10 (controls, P0
+   settings). :root = dark (default);
    [data-theme="light"] overrides every themed token. Both complete.
    ============================================================================ */
 
@@ -200,6 +201,62 @@
   --link-blue: #2F73C7;   /* inactive alternate */
 }
 
+/* ===== §7.10 Controls (Reading Settings — P0 shared vocabulary) ===========
+   The popover container + reusable controls that Track T (Theme) and the
+   accessibility pack (Reading) both plug into. All derived from §7 tokens.
+   Component dimensions live here too so no literal escapes the contract. */
+:root {
+  --popover-width:    320px;   /* settings popover shell        */
+  --popover-max-h:    72vh;    /* scrollable cap                */
+  --ctl-h:            28px;    /* standard control height       */
+  --ctl-radius:       var(--radius-ctl);  /* 6px — controls      */
+  --row-gap:          var(--sp-3);        /* label↔control rows  */
+
+  /* segmented picker */
+  --segment-bg:       var(--bg);              /* track recess     */
+  --segment-active:   var(--surface);         /* selected segment */
+  --segment-pad-y:    4px;
+  --segment-pad-x:    11px;
+  --segment-min:      30px;
+
+  /* toggle switch */
+  --toggle-w:         34px;
+  --toggle-h:         20px;
+  --toggle-pad:       2px;
+  --toggle-track-off: var(--border);
+  --toggle-track-on:  var(--accent);
+  --toggle-thumb:     var(--surface);         /* knob (rides the track) */
+  --toggle-thumb-shadow: 0 1px 2px rgba(0,0,0,.3);
+
+  /* color swatch + grid */
+  --swatch:           26px;                   /* swatch size      */
+  --swatch-ring:      var(--accent);          /* selected ring    */
+  --swatch-ring-gap:  2px;                    /* surface gap      */
+  --swatch-ring-w:    4px;                    /* outer clay ring  */
+
+  /* slider */
+  --slider-rail:      var(--border);
+  --slider-fill:      var(--accent);
+  --slider-thumb:     var(--surface);
+  --slider-thumb-d:   16px;                   /* thumb diameter   */
+  --slider-rail-h:    4px;
+
+  /* stepper */
+  --stepper-btn:      26px;
+  --stepper-val-min:  38px;
+
+  /* dropdown */
+  --dropdown-min:     120px;
+
+  /* theme-card preview dims */
+  --tc-preview-h:     40px;
+  --tc-pad:           10px;
+  --tc-gap:           5px;
+  --tc-dot:           11px;
+  --tc-line-h:        4px;
+  --tc-check:         14px;
+}
+
 /* ============================================================================
    RESET (scoped, minimal)
    ============================================================================ */
@@ -227,7 +284,7 @@
 .md {
   font-family: var(--font);
   color: var(--text);
-  max-width: none;                /* full-width reading panel … */
+  max-width: var(--md-max, none); /* full-width panel; the Reading-width tweak sets --md-max to opt into a cap */
   margin: 0 auto;
   padding: var(--sp-12) var(--reading-pad-x) var(--reading-foot);  /* … with responsive side padding */
   font-size: var(--fs-base);
@@ -795,4 +852,199 @@
 .outline-toggle.active {
   background: var(--surface); color: var(--accent);
   border-color: var(--border);
+}
+
+/* ============================================================================
+   READING SETTINGS (§8.3 · P0) — popover shell + shared control vocabulary
+   Safari-Reader-style popover anchored to a toolbar "Aa" control. Track T
+   (Theme) and the accessibility pack (Reading) fill the section bodies.
+   ============================================================================ */
+.settings-pop {
+  position: absolute; z-index: 42;
+  width: var(--popover-width); max-height: var(--popover-max-h);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--ui-font); overflow: hidden;
+}
+.settings-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  border-bottom: var(--hairline) solid var(--border);
+}
+.settings-head .t { font-size: var(--ui-size); font-weight: var(--fw-semibold); color: var(--text); }
+.settings-scroll { overflow-y: auto; padding: var(--sp-2) 0; }
+
+.settings-section { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+.settings-section + .settings-section { border-top: var(--hairline) solid var(--border); }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-3); }
+.section-head .lbl {
+  font-size: var(--ui-label); font-weight: var(--fw-semibold);
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted);
+}
+.section-reset {
+  font-family: var(--ui-font); font-size: var(--ui-small); color: var(--text-muted);
+  background: transparent; border: none; cursor: pointer;
+  padding: 2px var(--sp-1); border-radius: var(--radius-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+}
+.section-reset:hover { color: var(--accent); }
+
+.section-placeholder {
+  font-size: var(--ui-small); color: var(--text-muted); line-height: var(--lh-dense);
+  padding: var(--sp-4); text-align: center;
+  background: var(--bg);
+  border: var(--hairline) dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.ctl-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-4); min-height: var(--ctl-h);
+}
+.ctl-row + .ctl-row { margin-top: var(--row-gap); }
+.ctl-label { font-size: var(--ui-size); color: var(--text); }
+.ctl-label .sub { display: block; font-size: var(--ui-small); color: var(--text-muted); margin-top: 1px; }
+.ctl-value { font-size: var(--ui-small); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.segmented {
+  display: inline-flex; background: var(--segment-bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--ctl-radius); padding: 2px; gap: 2px;
+}
+.segmented button {
+  font-family: var(--ui-font); font-size: var(--ui-small); font-weight: 500;
+  color: var(--text-secondary); background: transparent;
+  border: none; border-radius: calc(var(--ctl-radius) - 2px);
+  padding: var(--segment-pad-y) var(--segment-pad-x); cursor: pointer; min-width: var(--segment-min);
+}
+.segmented button:hover { color: var(--text); }
+.segmented button.active { background: var(--segment-active); color: var(--text); box-shadow: var(--shadow); }
+.segmented button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.swatch-grid { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.swatch {
+  width: var(--swatch); height: var(--swatch); border-radius: 50%;
+  border: var(--hairline) solid var(--border); cursor: pointer; padding: 0;
+  position: relative; background: var(--sw, var(--surface));
+}
+.swatch:hover { transform: scale(1.06); }
+.swatch.selected { box-shadow: 0 0 0 var(--swatch-ring-gap) var(--surface), 0 0 0 var(--swatch-ring-w) var(--swatch-ring); }
+.swatch:focus-visible { outline: none; box-shadow: 0 0 0 var(--swatch-ring-gap) var(--surface), var(--focus-ring); }
+
+.slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: var(--slider-rail-h);
+  border-radius: var(--slider-rail-h); background: var(--slider-rail); cursor: pointer;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: var(--slider-thumb-d); height: var(--slider-thumb-d); border-radius: 50%;
+  background: var(--slider-thumb); border: var(--rule-accent) solid var(--accent); box-shadow: var(--shadow);
+}
+.slider:focus-visible { outline: none; }
+.slider:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus-ring); }
+.slider.filled {
+  background: linear-gradient(var(--slider-fill), var(--slider-fill)) 0/var(--fill,50%) 100% no-repeat, var(--slider-rail);
+}
+
+.stepper {
+  display: inline-flex; align-items: center;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--ctl-radius); overflow: hidden;
+}
+.stepper button {
+  width: var(--stepper-btn); height: var(--ctl-h);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: var(--text-secondary);
+  cursor: pointer; font-size: var(--small-size);
+}
+.stepper button:hover { background: var(--bg); color: var(--text); }
+.stepper .val {
+  min-width: var(--stepper-val-min); text-align: center;
+  font-size: var(--ui-size); color: var(--text); font-variant-numeric: tabular-nums;
+  border-left: var(--hairline) solid var(--border);
+  border-right: var(--hairline) solid var(--border);
+  line-height: var(--ctl-h);
+}
+
+.switch {
+  position: relative; flex: none;
+  width: var(--toggle-w); height: var(--toggle-h);
+  border-radius: var(--toggle-h); cursor: pointer;
+  background: var(--toggle-track-off); border: none; padding: 0;
+  transition: background .15s ease;
+}
+.switch::after {
+  content: ""; position: absolute; top: var(--toggle-pad); left: var(--toggle-pad);
+  width: calc(var(--toggle-h) - 2 * var(--toggle-pad));
+  height: calc(var(--toggle-h) - 2 * var(--toggle-pad));
+  border-radius: 50%; background: var(--toggle-thumb);
+  box-shadow: var(--toggle-thumb-shadow);
+  transition: transform .15s ease;
+}
+.switch.on { background: var(--toggle-track-on); }
+.switch.on::after { transform: translateX(calc(var(--toggle-w) - var(--toggle-h))); }
+.switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.dropdown {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  height: var(--ctl-h); min-width: var(--dropdown-min);
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  background: var(--bg); color: var(--text);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--ctl-radius);
+  font-family: var(--ui-font); font-size: var(--ui-size); cursor: pointer;
+}
+.dropdown:hover { border-color: var(--text-muted); }
+.dropdown:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+.dropdown svg { color: var(--text-muted); flex: none; }
+
+.import-row {
+  display: flex; align-items: center; gap: var(--sp-2);
+  width: 100%; height: var(--ctl-h);
+  padding: 0 var(--sp-3);
+  background: var(--bg); color: var(--text-secondary);
+  border: var(--hairline) dashed var(--border);
+  border-radius: var(--ctl-radius);
+  font-family: var(--ui-font); font-size: var(--ui-size); cursor: pointer;
+}
+.import-row:hover { border-color: var(--accent); color: var(--text); }
+.import-row svg { color: var(--text-muted); flex: none; }
+.import-row:hover svg { color: var(--accent); }
+
+.settings-toggle.active { background: var(--surface); color: var(--accent); border-color: var(--border); }
+
+/* ============================================================================
+   THEME PICKER (§8.3.1 · Track T) — built-in palette preview swatches
+   ============================================================================ */
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.theme-card {
+  position: relative; cursor: pointer; padding: 0;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  background: var(--tc-bg, var(--surface)); text-align: left;
+}
+.theme-card:hover { border-color: var(--text-muted); }
+.theme-card.selected { border-color: transparent; box-shadow: 0 0 0 var(--rule-accent) var(--accent); }
+.theme-card .tc-preview {
+  height: var(--tc-preview-h); display: flex; align-items: center; gap: var(--tc-gap);
+  padding: 0 var(--tc-pad);
+  background: var(--tc-bg, var(--bg));
+  border-bottom: var(--hairline) solid var(--tc-border, var(--border));
+}
+.theme-card .tc-dot { width: var(--tc-dot); height: var(--tc-dot); border-radius: 50%; flex: none; }
+.theme-card .tc-line { height: var(--tc-line-h); border-radius: 2px; flex: 1; background: var(--tc-text, var(--text)); opacity: .9; }
+.theme-card .tc-name {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: var(--ui-small); color: var(--text);
+  padding: var(--sp-2) var(--tc-pad);
+}
+.theme-card .tc-mode { font-size: var(--fs-micro); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.theme-card.selected .tc-check {
+  width: var(--tc-check); height: var(--tc-check); border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  display: inline-flex; align-items: center; justify-content: center;
 }

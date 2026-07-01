@@ -1,0 +1,156 @@
+/* ============================================================================
+   READER — themes.css
+   Built-in palette token sets · Track T (theming), spec §8.3.1
+
+   Each theme is a COLOR-ONLY block layered over the §7 contract in
+   design-tokens.css. A theme overrides only §7.1 tokens (the 9 color +
+   6 syntax). Type (§7.2) and reading ergonomics (§7.3) are inherited — a theme
+   never changes the font, measure, leading, etc. (those are user tweaks).
+
+   DERIVED TOKENS AUTO-UPDATE: --accent-soft and --accent-line are defined in
+   design-tokens.css §7.9 as `color-mix(... var(--accent) ...)`. Because they
+   reference var(--accent), overriding --accent here re-resolves them
+   automatically — they are NOT redefined per block.
+
+   APPLY: set the attribute on <html>, e.g. <html data-theme="catppuccin-mocha">.
+   Load order: design-tokens.css FIRST (contract + defaults), then themes.css.
+   "claude-dark" == the contract :root default; "claude-light" == the contract
+   light override — restated here as named themes so the picker is uniform.
+
+   LIGHT vs DARK: a theme block also sets `color-scheme` so form controls and
+   scrollbars match. Light themes are marked /* light */.
+
+   Token order in every block (the §7.1 contract):
+     --bg --surface --code-bg --text --text-secondary --text-muted --border
+     --accent --accent-emphasis
+     --syntax-keyword --syntax-string --syntax-number --syntax-comment
+     --syntax-function --syntax-variable
+   ============================================================================ */
+
+/* ===== CLAUDE — flagship (default) ======================================== */
+[data-theme="claude-dark"] {
+  --bg:#1F1F1E; --surface:#2C2C2B; --code-bg:#171716;
+  --text:#F8F8F6; --text-secondary:#C3C2B7; --text-muted:#97958C; --border:#454442;
+  --accent:#D97757; --accent-emphasis:#C6613F;
+  --syntax-keyword:#D97757; --syntax-string:#B5C89A; --syntax-number:#D9A05B;
+  --syntax-comment:#6F6D65; --syntax-function:#C9A8E8; --syntax-variable:#E8E6DC;
+  color-scheme: dark;
+}
+[data-theme="claude-light"] { /* light */
+  --bg:#F8F8F6; --surface:#FFFFFF; --code-bg:#EFEEEB;
+  --text:#121212; --text-secondary:#373734; --text-muted:#7B7974; --border:#E7E6E1;
+  --accent:#C6613F; --accent-emphasis:#B6532F;
+  --syntax-keyword:#B6532F; --syntax-string:#5C7042; --syntax-number:#9A6A1F;
+  --syntax-comment:#9B998F; --syntax-function:#7A4BA8; --syntax-variable:#2B2A27;
+  color-scheme: light;
+}
+
+/* ===== CATPPUCCIN ========================================================= */
+/* Latte (light) */
+[data-theme="catppuccin-latte"] { /* light */
+  --bg:#EFF1F5; --surface:#FFFFFF; --code-bg:#E6E9EF;
+  --text:#4C4F69; --text-secondary:#5C5F77; --text-muted:#6C6F85; --border:#BCC0CC;
+  --accent:#8839EF; --accent-emphasis:#7287FD;
+  --syntax-keyword:#8839EF; --syntax-string:#40A02B; --syntax-number:#FE640B;
+  --syntax-comment:#8C8FA1; --syntax-function:#1E66F5; --syntax-variable:#4C4F69;
+  color-scheme: light;
+}
+/* Mocha (dark, flagship) */
+[data-theme="catppuccin-mocha"] {
+  --bg:#1E1E2E; --surface:#313244; --code-bg:#181825;
+  --text:#CDD6F4; --text-secondary:#BAC2DE; --text-muted:#A6ADC8; --border:#45475A;
+  --accent:#CBA6F7; --accent-emphasis:#B4BEFE;
+  --syntax-keyword:#CBA6F7; --syntax-string:#A6E3A1; --syntax-number:#FAB387;
+  --syntax-comment:#6C7086; --syntax-function:#89B4FA; --syntax-variable:#CDD6F4;
+  color-scheme: dark;
+}
+
+/* ===== DRACULA (dark only) ================================================ */
+[data-theme="dracula"] {
+  --bg:#282A36; --surface:#44475A; --code-bg:#21222C;
+  --text:#F8F8F2; --text-secondary:#BCC0D8; --text-muted:#6272A4; --border:#343746;
+  --accent:#BD93F9; --accent-emphasis:#FF79C6;
+  --syntax-keyword:#FF79C6; --syntax-string:#F1FA8C; --syntax-number:#BD93F9;
+  --syntax-comment:#6272A4; --syntax-function:#50FA7B; --syntax-variable:#F8F8F2;
+  color-scheme: dark;
+}
+
+/* ===== NORD (dark) ======================================================== */
+[data-theme="nord"] {
+  --bg:#2E3440; --surface:#3B4252; --code-bg:#292E39;
+  --text:#ECEFF4; --text-secondary:#D8DEE9; --text-muted:#7B88A1; --border:#4C566A;
+  --accent:#88C0D0; --accent-emphasis:#5E81AC;
+  --syntax-keyword:#81A1C1; --syntax-string:#A3BE8C; --syntax-number:#B48EAD;
+  --syntax-comment:#616E88; --syntax-function:#88C0D0; --syntax-variable:#D8DEE9;
+  color-scheme: dark;
+}
+
+/* ===== TOKYO NIGHT (dark) ================================================= */
+[data-theme="tokyo-night"] {
+  --bg:#1A1B26; --surface:#24283B; --code-bg:#16161E;
+  --text:#C0CAF5; --text-secondary:#A9B1D6; --text-muted:#737AA2; --border:#292E42;
+  --accent:#7AA2F7; --accent-emphasis:#5A7FD6;
+  --syntax-keyword:#BB9AF7; --syntax-string:#9ECE6A; --syntax-number:#FF9E64;
+  --syntax-comment:#565F89; --syntax-function:#7AA2F7; --syntax-variable:#C0CAF5;
+  color-scheme: dark;
+}
+
+/* ===== ROSÉ PINE ========================================================== */
+/* base (dark) */
+[data-theme="rose-pine"] {
+  --bg:#191724; --surface:#1F1D2E; --code-bg:#16141F;
+  --text:#E0DEF4; --text-secondary:#908CAA; --text-muted:#6E6A86; --border:#403D52;
+  --accent:#C4A7E7; --accent-emphasis:#EB6F92;
+  --syntax-keyword:#31748F; --syntax-string:#F6C177; --syntax-number:#EBBCBA;
+  --syntax-comment:#6E6A86; --syntax-function:#9CCFD8; --syntax-variable:#E0DEF4;
+  color-scheme: dark;
+}
+/* Dawn (light) */
+[data-theme="rose-pine-dawn"] { /* light */
+  --bg:#FAF4ED; --surface:#FFFAF3; --code-bg:#F2E9E1;
+  --text:#575279; --text-secondary:#797593; --text-muted:#9893A5; --border:#DFDAD9;
+  --accent:#907AA9; --accent-emphasis:#B4637A;
+  --syntax-keyword:#286983; --syntax-string:#EA9D34; --syntax-number:#D7827E;
+  --syntax-comment:#9893A5; --syntax-function:#56949F; --syntax-variable:#575279;
+  color-scheme: light;
+}
+
+/* ===== GRUVBOX ============================================================ */
+/* dark */
+[data-theme="gruvbox-dark"] {
+  --bg:#282828; --surface:#3C3836; --code-bg:#1D2021;
+  --text:#EBDBB2; --text-secondary:#D5C4A1; --text-muted:#A89984; --border:#504945;
+  --accent:#FE8019; --accent-emphasis:#D65D0E;
+  --syntax-keyword:#FB4934; --syntax-string:#B8BB26; --syntax-number:#D3869B;
+  --syntax-comment:#928374; --syntax-function:#8EC07C; --syntax-variable:#83A598;
+  color-scheme: dark;
+}
+/* light */
+[data-theme="gruvbox-light"] { /* light */
+  --bg:#FBF1C7; --surface:#F4EAD0; --code-bg:#EBDBB2;
+  --text:#3C3836; --text-secondary:#504945; --text-muted:#7C6F64; --border:#D5C4A1;
+  --accent:#D65D0E; --accent-emphasis:#AF3A03;
+  --syntax-keyword:#9D0006; --syntax-string:#79740E; --syntax-number:#8F3F71;
+  --syntax-comment:#928374; --syntax-function:#427B58; --syntax-variable:#076678;
+  color-scheme: light;
+}
+
+/* ===== SOLARIZED ========================================================== */
+/* dark */
+[data-theme="solarized-dark"] {
+  --bg:#002B36; --surface:#073642; --code-bg:#00212B;
+  --text:#93A1A1; --text-secondary:#839496; --text-muted:#586E75; --border:#0A4250;
+  --accent:#268BD2; --accent-emphasis:#1F6FA8;
+  --syntax-keyword:#859900; --syntax-string:#2AA198; --syntax-number:#D33682;
+  --syntax-comment:#586E75; --syntax-function:#268BD2; --syntax-variable:#839496;
+  color-scheme: dark;
+}
+/* light */
+[data-theme="solarized-light"] { /* light */
+  --bg:#FDF6E3; --surface:#EEE8D5; --code-bg:#E9E2CD;
+  --text:#657B83; --text-secondary:#586E75; --text-muted:#93A1A1; --border:#DDD6C1;
+  --accent:#268BD2; --accent-emphasis:#1F6FA8;
+  --syntax-keyword:#859900; --syntax-string:#2AA198; --syntax-number:#D33682;
+  --syntax-comment:#93A1A1; --syntax-function:#268BD2; --syntax-variable:#657B83;
+  color-scheme: light;
+}

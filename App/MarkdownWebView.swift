@@ -8,7 +8,6 @@ import AppKit
 /// not a destination) so the doc webview stays mounted and scroll is preserved.
 struct MarkdownWebView: NSViewRepresentable {
     @ObservedObject var document: Document
-    let theme: AppTheme
     let model: AppModel
     /// Whether this tab is the front one. Every open doc keeps its own mounted
     /// webview (rendered once, scroll preserved); only the selected one drives
@@ -30,6 +29,7 @@ struct MarkdownWebView: NSViewRepresentable {
         webView.allowsMagnification = true
         webView.setValue(false, forKey: "drawsBackground")
         context.coordinator.webView = webView
+        model.register(webView: webView)   // sync theme/tweaks once it loads
 
         let resources = Bundle.main.resourceURL!
             .appendingPathComponent("WebResources", isDirectory: true)
@@ -41,7 +41,7 @@ struct MarkdownWebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         if isSelected { model.activeWebView = webView }
         context.coordinator.model = model
-        context.coordinator.apply(document: document, theme: theme)
+        context.coordinator.apply(document: document)
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
@@ -51,10 +51,8 @@ struct MarkdownWebView: NSViewRepresentable {
 
         private var loaded = false
         private var pendingDoc: Document?
-        private var pendingTheme: AppTheme?
         private var lastText: String?
         private var lastURL: URL?
-        private var lastTheme: AppTheme?
 
         init(model: AppModel) { self.model = model }
 
@@ -62,6 +60,7 @@ struct MarkdownWebView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             loaded = true
+            model?.pushTheming(to: webView)   // theme id + tweaks + custom, before first render
             flush()
         }
 
@@ -79,19 +78,14 @@ struct MarkdownWebView: NSViewRepresentable {
             decisionHandler(.allow)
         }
 
-        func apply(document: Document, theme: AppTheme) {
+        func apply(document: Document) {
             pendingDoc = document
             self.document = document
-            pendingTheme = theme
             if loaded { flush() }
         }
 
         private func flush() {
             guard let webView, let doc = pendingDoc else { return }
-            if let t = pendingTheme, t != lastTheme {
-                webView.evaluateJavaScript("window.__setTheme('\(t.rawValue)')")
-                lastTheme = t
-            }
             let urlChanged = doc.url != lastURL
             if doc.text != lastText || urlChanged {
                 let scrollArg: String
@@ -106,7 +100,6 @@ struct MarkdownWebView: NSViewRepresentable {
                 lastURL = doc.url
             }
             pendingDoc = nil
-            pendingTheme = nil
         }
 
         // MARK: messages
@@ -214,6 +207,7 @@ struct MarkdownWebView: NSViewRepresentable {
         }
 
         private func openSurface(_ url: URL, mode: LinkSurface.Mode) {
+            model?.settingsOpen = false      // a detour wins over the settings popover
             document?.surface = LinkSurface(url: url, mode: mode)
         }
 

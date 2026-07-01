@@ -39,6 +39,21 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
+                    // Reading Settings popover (§8.3) — overlays the reading column,
+                    // above doc + outline; a link sheet is mutually exclusive (opening
+                    // one closes the other). Esc / outside-click close it.
+                    .overlay(alignment: .topTrailing) {
+                        if model.settingsOpen {
+                            ZStack(alignment: .topTrailing) {
+                                Color.black.opacity(0.001)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { model.settingsOpen = false }
+                                SettingsPopover()
+                                    .padding(.top, 6).padding(.trailing, 10)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
 
                     // Right-side outline panel (per-tab; yields to a link split).
                     if let doc = model.selectedDocument {
@@ -50,9 +65,10 @@ struct ContentView: View {
         }
         .frame(minWidth: 820, minHeight: 540)
         .background(p.bg)
-        .preferredColorScheme(model.theme.colorScheme)
+        .preferredColorScheme(model.colorScheme)
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.22), value: model.sidebarVisible)
+        .animation(.easeOut(duration: 0.15), value: model.settingsOpen)
     }
 }
 

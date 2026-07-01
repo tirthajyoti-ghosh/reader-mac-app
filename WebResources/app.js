@@ -564,6 +564,40 @@
     reRenderMermaid(); // Mermaid bakes colors into the SVG, so re-run on theme flip
   };
 
+  /* ---- Track T (§8.3.1) theming: a theme is a color-only token block set via
+     data-theme (themes.css); user tweaks are single-token overrides on the root
+     (win over the theme); a custom theme is an injected :root token block.
+     All persist on documentElement so they survive __render (scroll preserved). */
+  var OVERRIDE_TOKENS = ["--accent", "--font", "--md-max", "--measure", "--leading", "--fs-base", "--para-space"];
+  window.__applyTheme = function (id) {
+    root.setAttribute("data-theme", id || "claude-dark");
+    reRenderMermaid();
+  };
+  window.__setOverride = function (name, value) {
+    if (value === null || value === undefined || value === "") root.style.removeProperty(name);
+    else root.style.setProperty(name, value);
+    if (name === "--accent" || name === "--bg" || name === "--surface") reRenderMermaid();
+  };
+  window.__clearOverride = function (name) {
+    root.style.removeProperty(name);
+    if (name === "--accent") reRenderMermaid();
+  };
+  window.__clearOverrides = function () {
+    OVERRIDE_TOKENS.forEach(function (n) { root.style.removeProperty(n); });
+    reRenderMermaid();
+  };
+  window.__applyCustom = function (css) {
+    var el = document.getElementById("__custom_theme");
+    if (!el) { el = document.createElement("style"); el.id = "__custom_theme"; document.head.appendChild(el); }
+    el.textContent = css || "";
+    reRenderMermaid();
+  };
+  window.__clearCustom = function () {
+    var el = document.getElementById("__custom_theme");
+    if (el) el.textContent = "";
+    reRenderMermaid();
+  };
+
   /* ---- find: highlight every match, cycle the current one ------------------ */
   function clearFind() {
     if (findHits.length) {
