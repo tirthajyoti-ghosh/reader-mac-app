@@ -17,12 +17,13 @@ HLJS="@highlightjs/cdn-assets@11.10.0"
 MERMAID="mermaid@11.4.1"
 KATEX="katex@0.16.11"
 SERIF="@fontsource-variable/source-serif-4@5.2.9"
+SANS="@fontsource/source-sans-3@5.2.5"
 MONO="@fontsource/jetbrains-mono@5.1.0"
 
 rm -rf "$TMP"; mkdir -p "$TMP" "$VENDOR" "$FONTS" "$VENDOR/katex/fonts"
 
 echo "==> downloading packages with npm pack into $TMP"
-( cd "$TMP" && npm pack "$MDIT" "$HLJS" "$MERMAID" "$KATEX" "$SERIF" "$MONO" >/dev/null )
+( cd "$TMP" && npm pack "$MDIT" "$HLJS" "$MERMAID" "$KATEX" "$SERIF" "$SANS" "$MONO" >/dev/null )
 for tgz in "$TMP"/*.tgz; do tar -xzf "$tgz" -C "$TMP"; done
 # npm pack extracts every package into ./package — extract each separately
 rm -rf "$TMP/pkgs"; mkdir -p "$TMP/pkgs"
@@ -61,6 +62,12 @@ find "$TMP/pkgs" -type f -path '*/package/dist/fonts/*.woff2' -exec cp {} "$VEND
 echo "==> fonts: Source Serif 4 (latin, variable weight) upright + italic"
 cp "$(find1 '*/source-serif-4-latin-wght-normal.woff2')" "$FONTS/SourceSerif4-VF.woff2"
 cp "$(find1 '*/source-serif-4-latin-wght-italic.woff2')" "$FONTS/SourceSerif4-Italic-VF.woff2"
+
+echo "==> fonts: Source Sans 3 (latin) 400 / 600 / 700 + 400 italic (alternate reading face)"
+cp "$(find1 '*/source-sans-3-latin-400-normal.woff2')" "$FONTS/SourceSans3-Regular.woff2"
+cp "$(find1 '*/source-sans-3-latin-600-normal.woff2')" "$FONTS/SourceSans3-SemiBold.woff2"
+cp "$(find1 '*/source-sans-3-latin-700-normal.woff2')" "$FONTS/SourceSans3-Bold.woff2"
+cp "$(find1 '*/source-sans-3-latin-400-italic.woff2')" "$FONTS/SourceSans3-Italic.woff2"
 
 echo "==> fonts: JetBrains Mono (latin) Regular + Bold"
 cp "$(find1 '*/jetbrains-mono-latin-400-normal.woff2')" "$FONTS/JetBrainsMono-Regular.woff2"

@@ -113,12 +113,15 @@ private struct ThemeSection: View {
                     }
                 }
                 // Reading face
-                CtlRow("Reading face") {
+                CtlRow("Reading face", token: "--font") {
                     Menu {
                         Button("Source Serif 4") { model.clearTweak("--font") }
+                        Button("Source Sans 3") {
+                            model.setTweak("--font", "\"Source Sans 3\", system-ui, -apple-system, sans-serif")
+                        }
                     } label: {
                         HStack(spacing: 6) {
-                            Text("Source Serif 4").font(.system(size: 13)).foregroundColor(p.text)
+                            Text(currentFace).font(.system(size: 13)).foregroundColor(p.text)
                             Image(systemName: "chevron.down").font(.system(size: 10)).foregroundColor(p.muted)
                         }
                         .padding(.horizontal, 10).frame(height: 28)
@@ -139,8 +142,9 @@ private struct ThemeSection: View {
                 CtlRow("Font size", token: "--fs-base") {
                     Stepper28(value: fontSize, range: 13...24, palette: p) { model.setTweak("--fs-base", "\($0)px") }
                 }
-                // Paragraph spacing
-                CtlRow("Paragraph spacing", token: "--para-space") {
+                // Paragraph spacing — own line so the three options don't squish
+                VStack(alignment: .leading, spacing: 9) {
+                    CtlHead("Paragraph spacing", token: "--para-space")
                     Segmented(options: [("Tight", "0.7em"), ("Normal", "1.05em"), ("Loose", "1.5em")],
                               current: model.tweaks["--para-space"] ?? "1.05em", palette: p) {
                         model.setTweak("--para-space", $0)
@@ -167,6 +171,9 @@ private struct ThemeSection: View {
                 set: { model.setTweak("--leading", String(format: "%.2f", $0)) })
     }
     private var fontSize: Int { Int((model.tweaks["--fs-base"] ?? "17px").replacingOccurrences(of: "px", with: "")) ?? 17 }
+    private var currentFace: String {
+        (model.tweaks["--font"]?.contains("Source Sans 3") == true) ? "Source Sans 3" : "Source Serif 4"
+    }
 }
 
 // MARK: - Reusable controls (mirror §7.10)
@@ -238,14 +245,15 @@ private struct Segmented: View {
             ForEach(options, id: \.1) { opt in
                 let on = opt.1 == current
                 Button { onSelect(opt.1) } label: {
-                    Text(opt.0).font(.system(size: 12, weight: .medium))
+                    Text(opt.0).font(.system(size: 12, weight: .medium)).lineLimit(1)
                         .foregroundColor(on ? palette.text : palette.text2)
-                        .padding(.vertical, 4).padding(.horizontal, 11).frame(minWidth: 30)
+                        .frame(maxWidth: .infinity).padding(.vertical, 5)
                         .background(RoundedRectangle(cornerRadius: 4).fill(on ? palette.surface : Color.clear))
                 }.buttonStyle(.plain)
             }
         }
         .padding(2)
+        .frame(maxWidth: .infinity)
         .background(RoundedRectangle(cornerRadius: 6).fill(palette.bg))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(palette.border, lineWidth: 1))
     }
