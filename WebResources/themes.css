@@ -154,3 +154,21 @@
   --syntax-comment:#93A1A1; --syntax-function:#268BD2; --syntax-variable:#657B83;
   color-scheme: light;
 }
+
+/* ============================================================================
+   READING PRESETS (Track A11y · §8.3.2) — opt-in, layered OVER the active theme.
+   Same color-only override contract as a theme block, keyed on [data-reading]
+   (set on the renderer root by app.js). Because these blocks come after every
+   [data-theme] block, they win by source order → "Dracula + high-contrast" etc.
+   compose. Only §7.1 color tokens change; accent is inherited from the theme.
+   ============================================================================ */
+[data-reading="sepia"] { /* warm paper — reduces glare */
+  --bg:#F4ECD8; --surface:#EBE1C7; --code-bg:#EDE4CF;
+  --text:#4A3F2E; --text-secondary:#6B5D45; --text-muted:#8B7C60; --border:#DDD0B1;
+  color-scheme: light;
+}
+[data-reading="high-contrast"] { /* maximum legibility — stark white on black */
+  --bg:#000000; --surface:#0B0B0C; --code-bg:#0B0B0C;
+  --text:#FFFFFF; --text-secondary:#EDEDED; --text-muted:#C9C9C9; --border:#6C6C6C;
+  color-scheme: dark;
+}

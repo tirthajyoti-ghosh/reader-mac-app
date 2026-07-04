@@ -46,18 +46,8 @@ struct SettingsPopover: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ThemeSection()
-                    // Reading section — placeholder, owned by the A11y track (§8.3.2)
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("READING").font(.system(size: 11, weight: .bold)).tracking(0.9).foregroundColor(p.muted)
-                        Text("Accessibility pack fills this later.")
-                            .font(.system(size: 12)).foregroundColor(p.muted)
-                            .frame(maxWidth: .infinity).padding(16)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(p.bg))
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-                                .foregroundColor(p.border))
-                    }
-                    .padding(16)
-                    .overlay(p.border.frame(height: 1), alignment: .top)
+                    ReadingSection()
+                        .overlay(p.border.frame(height: 1), alignment: .top)
                 }
             }
         }
@@ -87,7 +77,7 @@ private struct ThemeSection: View {
             HStack {
                 Text("THEME").font(.system(size: 11, weight: .bold)).tracking(0.9).foregroundColor(p.muted)
                 Spacer()
-                if !model.tweaks.isEmpty || model.customCSS != nil {
+                if model.hasThemeTweaks || model.customCSS != nil {
                     ResetButton("Reset") { model.clearAllTweaks(); model.clearCustomTheme() }
                 }
             }
@@ -111,24 +101,6 @@ private struct ThemeSection: View {
                             }
                         }
                     }
-                }
-                // Reading face
-                CtlRow("Reading face", token: "--font") {
-                    Menu {
-                        Button("Source Serif 4") { model.clearTweak("--font") }
-                        Button("Source Sans 3") {
-                            model.setTweak("--font", "\"Source Sans 3\", system-ui, -apple-system, sans-serif")
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(currentFace).font(.system(size: 13)).foregroundColor(p.text)
-                            Image(systemName: "chevron.down").font(.system(size: 10)).foregroundColor(p.muted)
-                        }
-                        .padding(.horizontal, 10).frame(height: 28)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(p.bg))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(p.border, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain).fixedSize()
                 }
                 // Reading width
                 SliderRow(label: "Reading width", token: "--md-max",
@@ -171,8 +143,116 @@ private struct ThemeSection: View {
                 set: { model.setTweak("--leading", String(format: "%.2f", $0)) })
     }
     private var fontSize: Int { Int((model.tweaks["--fs-base"] ?? "17px").replacingOccurrences(of: "px", with: "")) ?? 17 }
+}
+
+// MARK: - Reading section (Track A11y §8.3.2) — opt-in focus pack, all default OFF
+
+private struct ReadingSection: View {
+    @EnvironmentObject var model: AppModel
+
+    private let faces: [(String, String?)] = [
+        ("Source Serif 4", nil),
+        ("Source Sans 3", "\"Source Sans 3\", system-ui, -apple-system, sans-serif"),
+        ("Lexend", "\"Lexend\", system-ui, sans-serif"),
+        ("OpenDyslexic", "\"OpenDyslexic\", \"Comic Sans MS\", sans-serif"),
+    ]
+
+    var body: some View {
+        let p = model.palette
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("READING").font(.system(size: 11, weight: .bold)).tracking(0.9).foregroundColor(p.muted)
+                Spacer()
+                if model.hasReadingSettings { ResetButton("Reset") { model.resetReading() } }
+            }
+
+            // Reading face — extended with accessible faces (Lexend, OpenDyslexic)
+            CtlRow("Reading face", token: "--font") {
+                Menu {
+                    ForEach(faces, id: \.0) { name, fam in
+                        Button(name) { if let fam { model.setTweak("--font", fam) } else { model.clearTweak("--font") } }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(currentFace).font(.system(size: 13)).foregroundColor(p.text)
+                        Image(systemName: "chevron.down").font(.system(size: 10)).foregroundColor(p.muted)
+                    }
+                    .padding(.horizontal, 10).frame(height: 28)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(p.bg))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(p.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain).fixedSize()
+            }
+
+            // Letter / word spacing → §7.3 ergonomics tokens
+            SliderRow(label: "Letter spacing", token: "--letter-spacing", value: emBinding("--letter-spacing"),
+                      range: 0...0.10, readout: { String(format: "%.2f em", $0) }, palette: p)
+            SliderRow(label: "Word spacing", token: "--word-spacing", value: emBinding("--word-spacing"),
+                      range: 0...0.50, readout: { String(format: "%.2f em", $0) }, palette: p)
+
+            // Line focus + intensity
+            ToggleRow(label: "Line focus", sub: "Dim all but the current line",
+                      isOn: Binding(get: { model.lineFocus }, set: { model.setLineFocus($0) }), palette: p)
+            if model.lineFocus {
+                VStack(alignment: .leading, spacing: 9) {
+                    Text("Focus intensity").font(.system(size: 13)).foregroundColor(p.text)
+                    Segmented(options: [("Subtle", "0.45"), ("Strong", "0.22")],
+                              current: model.tweaks["--focus-dim"] ?? "0.45", palette: p) {
+                        model.setTweak("--focus-dim", $0)
+                    }
+                }
+            }
+
+            // Dim surrounding paragraphs
+            ToggleRow(label: "Dim surrounding ¶", sub: "Gentler than line focus",
+                      isOn: Binding(get: { model.dimParagraphs }, set: { model.setDimParagraphs($0) }), palette: p)
+
+            // Bionic
+            ToggleRow(label: "Bionic mode", sub: "Bold the start of words",
+                      isOn: Binding(get: { model.bionic }, set: { model.setBionic($0) }), palette: p)
+
+            // Sepia / high-contrast presets — layer over the active theme
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(spacing: 6) {
+                    Text("Preset").font(.system(size: 13)).foregroundColor(p.text)
+                    Text("Layers over the theme").font(.system(size: 11)).foregroundColor(p.muted)
+                }
+                Segmented(options: [("Off", ""), ("Sepia", "sepia"), ("Contrast", "high-contrast")],
+                          current: model.readingPreset ?? "", palette: p) {
+                    model.setReadingPreset($0.isEmpty ? nil : $0)
+                }
+            }
+        }
+        .padding(16)
+    }
+
     private var currentFace: String {
-        (model.tweaks["--font"]?.contains("Source Sans 3") == true) ? "Source Sans 3" : "Source Serif 4"
+        guard let f = model.tweaks["--font"] else { return "Source Serif 4" }
+        if f.contains("Lexend") { return "Lexend" }
+        if f.contains("OpenDyslexic") { return "OpenDyslexic" }
+        if f.contains("Source Sans 3") { return "Source Sans 3" }
+        return "Source Serif 4"
+    }
+    private func emBinding(_ token: String) -> Binding<Double> {
+        Binding(get: { Double((model.tweaks[token] ?? "0").replacingOccurrences(of: "em", with: "")) ?? 0 },
+                set: { v in v <= 0.001 ? model.clearTweak(token) : model.setTweak(token, String(format: "%.2fem", v)) })
+    }
+}
+
+private struct ToggleRow: View {
+    let label: String
+    let sub: String
+    @Binding var isOn: Bool
+    let palette: Palette
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.system(size: 13)).foregroundColor(palette.text)
+                Text(sub).font(.system(size: 11)).foregroundColor(palette.muted)
+            }
+            Spacer()
+            Toggle("", isOn: $isOn).labelsHidden().toggleStyle(.switch).tint(palette.accent).controlSize(.small)
+        }
     }
 }
 

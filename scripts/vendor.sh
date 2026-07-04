@@ -18,12 +18,14 @@ MERMAID="mermaid@11.4.1"
 KATEX="katex@0.16.11"
 SERIF="@fontsource-variable/source-serif-4@5.2.9"
 SANS="@fontsource/source-sans-3@5.2.5"
+LEXEND="@fontsource/lexend@5.2.11"
+ODYS="@fontsource/opendyslexic@5.2.5"
 MONO="@fontsource/jetbrains-mono@5.1.0"
 
 rm -rf "$TMP"; mkdir -p "$TMP" "$VENDOR" "$FONTS" "$VENDOR/katex/fonts"
 
 echo "==> downloading packages with npm pack into $TMP"
-( cd "$TMP" && npm pack "$MDIT" "$HLJS" "$MERMAID" "$KATEX" "$SERIF" "$SANS" "$MONO" >/dev/null )
+( cd "$TMP" && npm pack "$MDIT" "$HLJS" "$MERMAID" "$KATEX" "$SERIF" "$SANS" "$LEXEND" "$ODYS" "$MONO" >/dev/null )
 for tgz in "$TMP"/*.tgz; do tar -xzf "$tgz" -C "$TMP"; done
 # npm pack extracts every package into ./package — extract each separately
 rm -rf "$TMP/pkgs"; mkdir -p "$TMP/pkgs"
@@ -68,6 +70,16 @@ cp "$(find1 '*/source-sans-3-latin-400-normal.woff2')" "$FONTS/SourceSans3-Regul
 cp "$(find1 '*/source-sans-3-latin-600-normal.woff2')" "$FONTS/SourceSans3-SemiBold.woff2"
 cp "$(find1 '*/source-sans-3-latin-700-normal.woff2')" "$FONTS/SourceSans3-Bold.woff2"
 cp "$(find1 '*/source-sans-3-latin-400-italic.woff2')" "$FONTS/SourceSans3-Italic.woff2"
+
+echo "==> fonts: Lexend (latin) 400 / 600 / 700 — accessible reading face (Track A11y)"
+cp "$(find1 '*/lexend-latin-400-normal.woff2')" "$FONTS/Lexend-Regular.woff2"
+cp "$(find1 '*/lexend-latin-600-normal.woff2')" "$FONTS/Lexend-SemiBold.woff2"
+cp "$(find1 '*/lexend-latin-700-normal.woff2')" "$FONTS/Lexend-Bold.woff2"
+
+echo "==> fonts: OpenDyslexic (latin) 400 / 700 + italics — accessible reading face (Track A11y)"
+cp "$(find1 '*/opendyslexic-latin-400-normal.woff2')" "$FONTS/OpenDyslexic-Regular.woff2"
+cp "$(find1 '*/opendyslexic-latin-700-normal.woff2')" "$FONTS/OpenDyslexic-Bold.woff2"
+cp "$(find1 '*/opendyslexic-latin-400-italic.woff2')" "$FONTS/OpenDyslexic-Italic.woff2"
 
 echo "==> fonts: JetBrains Mono (latin) Regular + Bold"
 cp "$(find1 '*/jetbrains-mono-latin-400-normal.woff2')" "$FONTS/JetBrainsMono-Regular.woff2"

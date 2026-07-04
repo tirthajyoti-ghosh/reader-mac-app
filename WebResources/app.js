@@ -557,6 +557,7 @@
     if (doc.querySelector(".mermaid")) ensureMermaid(function () { runMermaid(doc); });
     scroller.scrollTop = restoreScroll || 0;
     updateProgress();
+    reapplyReadingAfterRender();   // re-wrap Bionic + re-mark the current block
   };
 
   window.__setTheme = function (t) {
@@ -568,7 +569,8 @@
      data-theme (themes.css); user tweaks are single-token overrides on the root
      (win over the theme); a custom theme is an injected :root token block.
      All persist on documentElement so they survive __render (scroll preserved). */
-  var OVERRIDE_TOKENS = ["--accent", "--font", "--md-max", "--measure", "--leading", "--fs-base", "--para-space"];
+  var OVERRIDE_TOKENS = ["--accent", "--font", "--md-max", "--leading", "--fs-base", "--para-space",
+                        "--letter-spacing", "--word-spacing", "--focus-dim"];
   window.__applyTheme = function (id) {
     root.setAttribute("data-theme", id || "claude-dark");
     reRenderMermaid();
@@ -598,15 +600,137 @@
     reRenderMermaid();
   };
 
-  /* ---- find: highlight every match, cycle the current one ------------------ */
+  /* ---- Track A11y (§8.3.2): opt-in reading/focus modes. Class-gated on #doc
+     (or data-reading on the root) so they're reversible + survive theme swaps;
+     re-applied after each __render. All default OFF (Invariant I4). ---------- */
+
+  // Line-band focus: the block nearest the reading line stays lit; the rest fade.
+  function currentReadingBlock() {
+    var mid = scroller.getBoundingClientRect().top + scroller.clientHeight * 0.4;
+    var kids = doc.children, best = null, bestDist = Infinity;
+    for (var i = 0; i < kids.length; i++) {
+      var el = kids[i];
+      if (el.classList && (el.classList.contains("doc-path") || el.classList.contains("breadcrumb"))) continue;
+      var r = el.getBoundingClientRect();
+      if (r.height === 0) continue;
+      var d = (r.top <= mid && r.bottom >= mid) ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
+      if (d < bestDist) { bestDist = d; best = el; }
+    }
+    return best;
+  }
+  function markCurrentBlock() {
+    if (!doc.classList.contains("focus-line") && !doc.classList.contains("dim-para")) return;
+    var best = currentReadingBlock();
+    var prev = doc.querySelector(":scope > .current");
+    if (prev && prev !== best) prev.classList.remove("current");
+    if (best && !best.classList.contains("current")) best.classList.add("current");
+  }
+  function clearCurrentIfIdle() {
+    if (doc.classList.contains("focus-line") || doc.classList.contains("dim-para")) return;
+    var c = doc.querySelector(":scope > .current");
+    if (c) c.classList.remove("current");
+  }
+  var curScheduled = false;
+  function scheduleCurrent() {
+    if (curScheduled) return;
+    curScheduled = true;
+    requestAnimationFrame(function () { curScheduled = false; markCurrentBlock(); });
+  }
+  scroller.addEventListener("scroll", scheduleCurrent, { passive: true });
+
+  // Bionic: wrap the head of each word in <b class="bl"> (inert until .bionic).
+  // Never alters textContent — outline / links / scroll read textContent — and
+  // unwrap + normalize restores the original text nodes exactly, so ⌘F (which
+  // matches across nodes) stays correct on and off.
+  function bionicHeadLen(w) {
+    var n = w.length;
+    if (n <= 1) return n;
+    if (n <= 3) return 1;
+    if (n <= 6) return 2;
+    return Math.round(n * 0.4);
+  }
+  function bionicWrap() {
+    var walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        if (!node.nodeValue || !/[A-Za-z0-9]/.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+        var p = node.parentNode;
+        while (p && p !== doc) {
+          var t = p.nodeName;
+          if (t === "CODE" || t === "PRE" || t === "SCRIPT" || t === "STYLE" || t === "MARK") return NodeFilter.FILTER_REJECT;
+          if (p.classList && (p.classList.contains("bl") || p.classList.contains("doc-path") || p.classList.contains("breadcrumb"))) return NodeFilter.FILTER_REJECT;
+          p = p.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (node) {
+      var frag = document.createDocumentFragment();
+      node.nodeValue.split(/(\s+)/).forEach(function (tok) {
+        if (tok === "") return;
+        if (/^\s+$/.test(tok)) { frag.appendChild(document.createTextNode(tok)); return; }
+        var h = bionicHeadLen(tok);
+        var b = document.createElement("b");
+        b.className = "bl";
+        b.textContent = tok.slice(0, h);
+        frag.appendChild(b);
+        if (h < tok.length) frag.appendChild(document.createTextNode(tok.slice(h)));
+      });
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+  function bionicUnwrap() {
+    doc.querySelectorAll("b.bl").forEach(function (b) {
+      b.parentNode.replaceChild(document.createTextNode(b.textContent), b);
+    });
+    doc.normalize();   // merge the split text nodes back → textContent identical
+  }
+
+  window.__setLineFocus = function (on) {
+    doc.classList.toggle("focus-line", !!on);
+    if (on) markCurrentBlock(); else clearCurrentIfIdle();
+  };
+  window.__setDimParagraphs = function (on) {
+    doc.classList.toggle("dim-para", !!on);
+    if (on) markCurrentBlock(); else clearCurrentIfIdle();
+  };
+  window.__setBionic = function (on) {
+    on = !!on;
+    if (on === doc.classList.contains("bionic")) return;   // idempotent
+    clearFind();                                           // don't tangle marks with the re-wrap
+    if (on) { doc.classList.add("bionic"); bionicWrap(); }
+    else { doc.classList.remove("bionic"); bionicUnwrap(); }
+  };
+  window.__applyReadingPreset = function (name) {
+    if (name) root.setAttribute("data-reading", name); else root.removeAttribute("data-reading");
+    reRenderMermaid();   // preset changes bg/text, which Mermaid bakes in
+  };
+  window.__clearReadingPreset = function () { root.removeAttribute("data-reading"); reRenderMermaid(); };
+
+  // After a fresh render the doc children are rebuilt — the #doc classes, root
+  // data-reading, and style overrides persist, but the Bionic wrap + .current
+  // block must be recreated.
+  function reapplyReadingAfterRender() {
+    if (doc.classList.contains("bionic")) bionicWrap();
+    markCurrentBlock();
+  }
+
+  /* ---- find: highlight every match, cycle the current one ------------------
+     Matches are found over the CONCATENATED text of the doc, not per text node,
+     so a match spanning inline boundaries — bold/italic/links, and Bionic's
+     <b class="bl"> word-heads (§8.3.2) — still highlights. One logical match may
+     therefore be several <mark> fragments, so findHits holds an array per match. */
   function clearFind() {
     if (findHits.length) {
       var parents = [];
-      findHits.forEach(function (m) {
-        var p = m.parentNode;
-        if (!p) return;
-        p.replaceChild(document.createTextNode(m.textContent), m);
-        if (parents.indexOf(p) === -1) parents.push(p);
+      findHits.forEach(function (group) {
+        group.forEach(function (m) {
+          var p = m.parentNode;
+          if (!p) return;
+          p.replaceChild(document.createTextNode(m.textContent), m);
+          if (parents.indexOf(p) === -1) parents.push(p);
+        });
       });
       parents.forEach(function (p) { p.normalize(); });
     }
@@ -614,10 +738,7 @@
     findPos = -1;
   }
 
-  function highlightAll(query) {
-    clearFind();
-    var needle = (query || "").toLowerCase();
-    if (!needle) return 0;
+  function findableTextNodes() {
     var walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
         if (!node.nodeValue || !/\S/.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
@@ -633,35 +754,68 @@
     });
     var nodes = [], n;
     while ((n = walker.nextNode())) nodes.push(n);
+    return nodes;
+  }
 
-    nodes.forEach(function (node) {
-      var text = node.nodeValue, lower = text.toLowerCase();
-      var idx = lower.indexOf(needle);
-      if (idx === -1) return;
+  function highlightAll(query) {
+    clearFind();
+    var needle = (query || "").toLowerCase();
+    if (!needle) return 0;
+    var nodes = findableTextNodes();
+    if (!nodes.length) return 0;
+
+    // Combined lowercased text + per-node start offsets.
+    var full = "", starts = [];
+    nodes.forEach(function (node) { starts.push(full.length); full += node.nodeValue.toLowerCase(); });
+
+    // All match ranges [s, e) over the combined text (sorted, non-overlapping).
+    var ranges = [], i = full.indexOf(needle);
+    while (i !== -1) { ranges.push([i, i + needle.length]); i = full.indexOf(needle, i + needle.length); }
+    if (!ranges.length) return 0;
+
+    // For each node, the covered sub-segments (local coords) tagged by match id.
+    var perNode = nodes.map(function () { return []; });
+    var rIdx = 0;
+    for (var k = 0; k < nodes.length; k++) {
+      var ns = starts[k], ne = ns + nodes[k].nodeValue.length;
+      for (var r = rIdx; r < ranges.length; r++) {
+        var s = ranges[r][0], e = ranges[r][1];
+        if (e <= ns) { if (r === rIdx) rIdx++; continue; }   // range fully before this node
+        if (s >= ne) break;                                   // sorted → no later range overlaps
+        perNode[k].push({ s: Math.max(s, ns) - ns, e: Math.min(e, ne) - ns, m: r });
+      }
+    }
+
+    // Rebuild covered nodes, wrapping each covered segment in its own <mark>.
+    var groups = ranges.map(function () { return []; });
+    for (var k2 = 0; k2 < nodes.length; k2++) {
+      var segs = perNode[k2];
+      if (!segs.length) continue;
+      var node = nodes[k2], text = node.nodeValue;
       var frag = document.createDocumentFragment(), last = 0;
-      while (idx !== -1) {
-        if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
+      segs.forEach(function (seg) {
+        if (seg.s > last) frag.appendChild(document.createTextNode(text.slice(last, seg.s)));
         var mark = document.createElement("mark");
         mark.className = "find-hit";
-        mark.textContent = text.slice(idx, idx + needle.length);
+        mark.textContent = text.slice(seg.s, seg.e);
         frag.appendChild(mark);
-        findHits.push(mark);
-        last = idx + needle.length;
-        idx = lower.indexOf(needle, last);
-      }
+        groups[seg.m].push(mark);
+        last = seg.e;
+      });
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       node.parentNode.replaceChild(frag, node);
-    });
+    }
+    findHits = groups.filter(function (g) { return g.length; });
     return findHits.length;
   }
 
   function setCurrent(i) {
     if (!findHits.length) return;
-    if (findPos >= 0 && findHits[findPos]) findHits[findPos].classList.remove("current");
+    if (findPos >= 0 && findHits[findPos]) findHits[findPos].forEach(function (m) { m.classList.remove("current"); });
     findPos = ((i % findHits.length) + findHits.length) % findHits.length;
-    var cur = findHits[findPos];
-    cur.classList.add("current");
-    cur.scrollIntoView({ block: "center", inline: "nearest" });
+    var group = findHits[findPos];
+    group.forEach(function (m) { m.classList.add("current"); });
+    if (group[0]) group[0].scrollIntoView({ block: "center", inline: "nearest" });
   }
 
   window.__find = function (query) {

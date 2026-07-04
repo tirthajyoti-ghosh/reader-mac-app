@@ -33,6 +33,16 @@ final class AppModel: ObservableObject {
     let builtinThemes: [BuiltinTheme]
     private let liveWebViews = NSHashTable<WKWebView>.weakObjects()
 
+    // Track A11y (§8.3.2) reading/focus modes — all default OFF (I4). Face +
+    // letter/word spacing + focus-dim reuse `tweaks`; these are separate modes.
+    @Published var lineFocus = false
+    @Published var dimParagraphs = false
+    @Published var bionic = false
+    @Published var readingPreset: String?   // "sepia" | "high-contrast" | nil
+    /// Which tweak tokens each section's Reset owns (both live in `tweaks`).
+    static let themeTokenKeys = ["--accent", "--md-max", "--leading", "--fs-base", "--para-space"]
+    static let a11yTokenKeys  = ["--font", "--letter-spacing", "--word-spacing", "--focus-dim"]
+
     // Sidebar
     @Published var sidebarVisible = true
     @Published var sidebarFolder: URL
@@ -84,6 +94,10 @@ final class AppModel: ObservableObject {
         if ow > 0 { self.outlineWidth = CGFloat(ow) }
         if let t = UserDefaults.standard.dictionary(forKey: "themeTweaks") as? [String: String] { self.tweaks = t }
         self.customCSS = UserDefaults.standard.string(forKey: "customThemeCSS")
+        self.lineFocus = UserDefaults.standard.bool(forKey: "a11yLineFocus")
+        self.dimParagraphs = UserDefaults.standard.bool(forKey: "a11yDimParagraphs")
+        self.bionic = UserDefaults.standard.bool(forKey: "a11yBionic")
+        self.readingPreset = UserDefaults.standard.string(forKey: "readingPreset")
         reloadSidebar()
         watchFolder()
         updatePalette()
@@ -177,6 +191,11 @@ final class AppModel: ObservableObject {
         wv.evaluateJavaScript("window.__applyTheme('\(themeId)')")
         if let css = customCSS { wv.evaluateJavaScript("window.__applyCustom(\(jsStringLiteral(css)))") }
         for (k, v) in tweaks { wv.evaluateJavaScript("window.__setOverride('\(k)', \(jsStringLiteral(v)))") }
+        // Track A11y modes + preset (re-applied on every fresh webview / render).
+        if lineFocus { wv.evaluateJavaScript("window.__setLineFocus(true)") }
+        if dimParagraphs { wv.evaluateJavaScript("window.__setDimParagraphs(true)") }
+        if bionic { wv.evaluateJavaScript("window.__setBionic(true)") }
+        if let p = readingPreset { wv.evaluateJavaScript("window.__applyReadingPreset('\(p)')") }
     }
     private func evalAll(_ js: String) { for wv in liveWebViews.allObjects { wv.evaluateJavaScript(js) } }
 
@@ -207,12 +226,58 @@ final class AppModel: ObservableObject {
         evalAll("window.__clearOverride('\(token)')")
         if token == "--accent" { updatePalette() }
     }
+    /// Theme section Reset — clears only the theme tweaks (A11y tweaks are separate).
     func clearAllTweaks() {
-        guard !tweaks.isEmpty else { return }
-        tweaks = [:]
+        let hit = Self.themeTokenKeys.filter { tweaks[$0] != nil }
+        guard !hit.isEmpty else { return }
+        for t in hit { tweaks[t] = nil; evalAll("window.__clearOverride('\(t)')") }
         UserDefaults.standard.set(tweaks, forKey: "themeTweaks")
-        evalAll("window.__clearOverrides()")
         updatePalette()
+    }
+    var hasThemeTweaks: Bool { Self.themeTokenKeys.contains { tweaks[$0] != nil } }
+
+    // MARK: - Reading / accessibility (Track A11y §8.3.2)
+
+    func setLineFocus(_ on: Bool) {
+        guard on != lineFocus else { return }
+        lineFocus = on
+        UserDefaults.standard.set(on, forKey: "a11yLineFocus")
+        evalAll("window.__setLineFocus(\(on))")
+    }
+    func setDimParagraphs(_ on: Bool) {
+        guard on != dimParagraphs else { return }
+        dimParagraphs = on
+        UserDefaults.standard.set(on, forKey: "a11yDimParagraphs")
+        evalAll("window.__setDimParagraphs(\(on))")
+    }
+    func setBionic(_ on: Bool) {
+        guard on != bionic else { return }
+        bionic = on
+        UserDefaults.standard.set(on, forKey: "a11yBionic")
+        evalAll("window.__setBionic(\(on))")
+    }
+    func setReadingPreset(_ name: String?) {
+        guard name != readingPreset else { return }
+        readingPreset = name
+        if let n = name {
+            UserDefaults.standard.set(n, forKey: "readingPreset")
+            evalAll("window.__applyReadingPreset('\(n)')")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "readingPreset")
+            evalAll("window.__clearReadingPreset()")
+        }
+    }
+    /// Reading section Reset — clears the A11y tweaks + all A11y modes.
+    func resetReading() {
+        for t in Self.a11yTokenKeys where tweaks[t] != nil {
+            tweaks[t] = nil; evalAll("window.__clearOverride('\(t)')")
+        }
+        UserDefaults.standard.set(tweaks, forKey: "themeTweaks")
+        setLineFocus(false); setDimParagraphs(false); setBionic(false); setReadingPreset(nil)
+    }
+    var hasReadingSettings: Bool {
+        lineFocus || dimParagraphs || bionic || readingPreset != nil
+            || Self.a11yTokenKeys.contains { tweaks[$0] != nil }
     }
 
     // MARK: - Custom theme import (§8.5.1 security: token declarations only)

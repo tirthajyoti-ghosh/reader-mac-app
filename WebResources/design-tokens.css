@@ -1,6 +1,6 @@
 /* ============================================================================
    READER — design-tokens.css
-   THE TOKEN CONTRACT · canonical, per PRODUCT_SPEC.md §7 (v1.2 — §7.1–7.10, both themes)
+   THE TOKEN CONTRACT · canonical, per PRODUCT_SPEC.md §7 (v1.2 — §7.1–7.11, both themes)
 
    SINGLE SOURCE OF TRUTH for every visual property. Invariant I7 / §6.3:
    no color, font, size, spacing, width, radius, or shadow is hardcoded outside
@@ -9,7 +9,7 @@
    Colors are the EXACT tokens extracted from Claude Desktop.
    Structure: §7.1–7.3 (color / type / ergonomics) + §7.4–7.9 (radii / spacing /
    dimensions / chrome+code type / elevation / semantic) + §7.10 (controls, P0
-   settings). :root = dark (default);
+   settings) + §7.11 (reading / accessibility). :root = dark (default);
    [data-theme="light"] overrides every themed token. Both complete.
    ============================================================================ */
 
@@ -77,9 +77,10 @@
   --fs-h4:       1.0em;
   --fw-normal:   400;
   --fw-semibold: 650;
+  --fw-bold:     700;   /* Bionic word-heads (§8.3.2); available to all bundled faces */
 
   /* ---- §7.3 Reading ergonomics (accessibility controls bind to these) ---- */
-  --measure:         46rem;   /* optional capped column width (accessibility "reading width"); not applied by default */
+  --md-max:          none;    /* THE reading-width cap: full-width by default; the Reading-width tweak sets a rem cap (unified — was split with --measure) */
   --reading-pad-x:   clamp(var(--sp-10), 7vw, 160px);  /* full-width reading panel: responsive side padding */
   --leading:         1.72;
   --para-space:      1.05em;
@@ -257,6 +258,17 @@
   --tc-check:         14px;
 }
 
+/* ===== §7.11 Reading / accessibility (Track A11y — opt-in focus pack) ======
+   Tokens the Reading section's focus modes bind to. Everything defaults to a
+   no-op so the plain reading surface is untouched (Invariant I4). Sepia /
+   high-contrast presets are color-only token blocks in themes.css (they layer
+   over the active theme via [data-reading]). */
+:root {
+  --focus-dim:     0.45;   /* line-focus: opacity of non-current blocks (Strong = 0.22) */
+  --dim-para:      0.6;    /* dim-surrounding: gentler than line-focus                  */
+  --focus-fade:    .18s;   /* dim/undim transition                                       */
+}
+
 /* ============================================================================
    RESET (scoped, minimal)
    ============================================================================ */
@@ -284,7 +296,7 @@
 .md {
   font-family: var(--font);
   color: var(--text);
-  max-width: var(--md-max, none); /* full-width panel; the Reading-width tweak sets --md-max to opt into a cap */
+  max-width: var(--md-max); /* §7.3 reading-width cap: default none (full-width); the Reading-width tweak sets a rem cap */
   margin: 0 auto;
   padding: var(--sp-12) var(--reading-pad-x) var(--reading-foot);  /* … with responsive side padding */
   font-size: var(--fs-base);
@@ -1048,3 +1060,20 @@
   background: var(--accent); color: var(--bg);
   display: inline-flex; align-items: center; justify-content: center;
 }
+
+/* ============================================================================
+   §8.3.2 READING TRANSFORMS (Track A11y) — opt-in focus modes on .md.
+   Reversible, class-gated on #doc, default OFF → the plain surface is untouched
+   (I4). All values come from §7.11 tokens; no hardcoded colors here (presets
+   supply the color via [data-reading] token blocks in themes.css).
+   ============================================================================ */
+/* Line focus / dim-surrounding: the block at the reading line keeps .current
+   (set by app.js on scroll); the rest fade. doc-path / breadcrumb never dim. */
+.md.focus-line > *:not(.current):not(.doc-path):not(.breadcrumb) { opacity: var(--focus-dim); }
+.md.dim-para   > *:not(.current):not(.doc-path):not(.breadcrumb) { opacity: var(--dim-para); }
+.md.focus-line > *, .md.dim-para > * { transition: opacity var(--focus-fade); }
+
+/* Bionic: word-heads are wrapped in <b class="bl"> by app.js; inert until the
+   .bionic class is on, so toggling is instant + the wrap is fully reversible. */
+.md .bl { font-weight: inherit; }
+.md.bionic .bl { font-weight: var(--fw-bold); }
