@@ -329,6 +329,7 @@ private struct Segmented: View {
                         .foregroundColor(on ? palette.text : palette.text2)
                         .frame(maxWidth: .infinity).padding(.vertical, 5)
                         .background(RoundedRectangle(cornerRadius: 4).fill(on ? palette.surface : Color.clear))
+                        .contentShape(Rectangle())   // whole segment is clickable, not just the text
                 }.buttonStyle(.plain)
             }
         }
@@ -360,6 +361,7 @@ private struct Stepper28: View {
         Button(action: act) {
             Image(systemName: sym).font(.system(size: 11, weight: .medium)).foregroundColor(palette.text2)
                 .frame(width: 26, height: 28)
+                .contentShape(Rectangle())   // whole button cell is clickable
         }.buttonStyle(.plain)
     }
 }
