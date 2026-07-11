@@ -315,7 +315,7 @@ private struct AccentSwatch: View {
     }
 }
 
-private struct Segmented: View {
+struct Segmented: View {
     let options: [(String, String)]   // (label, value)
     let current: String
     let palette: Palette

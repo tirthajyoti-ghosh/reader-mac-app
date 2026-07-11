@@ -23,11 +23,15 @@ struct MarkdownWebView: NSViewRepresentable {
         config.userContentController.add(handler, name: "link")
         config.userContentController.add(handler, name: "peek")
         config.userContentController.add(handler, name: "outline")
+        config.userContentController.add(handler, name: "selchange")
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = DocWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsMagnification = true
         webView.setValue(false, forKey: "drawsBackground")
+        // right-click on a text selection → "Export as image…" (Track S)
+        webView.hasSelection = { [weak coord = context.coordinator] in coord?.hasSelection ?? false }
+        webView.onExportSelection = { [weak coord = context.coordinator] in coord?.exportSelection() }
         context.coordinator.webView = webView
         model.register(webView: webView)   // sync theme/tweaks once it loads
 
@@ -53,8 +57,17 @@ struct MarkdownWebView: NSViewRepresentable {
         private var pendingDoc: Document?
         private var lastText: String?
         private var lastURL: URL?
+        var hasSelection = false          // tracked from the renderer (selectionchange)
 
         init(model: AppModel) { self.model = model }
+
+        /// Right-click → Export as image…: pull the selection's rendered HTML.
+        func exportSelection() {
+            webView?.evaluateJavaScript("window.__selectionHTML()") { [weak self] res, _ in
+                guard let self, let html = res as? String, !html.isEmpty else { NSSound.beep(); return }
+                self.model?.openExport(kind: "selection", html: html)
+            }
+        }
 
         // MARK: render
 
@@ -111,6 +124,7 @@ struct MarkdownWebView: NSViewRepresentable {
             case "link": handleLink(message.body)
             case "peek": handlePeek(message.body)
             case "outline": handleOutline(message.body)
+            case "selchange": hasSelection = (message.body as? Bool) ?? false
             default: break
             }
         }
@@ -208,6 +222,7 @@ struct MarkdownWebView: NSViewRepresentable {
 
         private func openSurface(_ url: URL, mode: LinkSurface.Mode) {
             model?.settingsOpen = false      // a detour wins over the settings popover
+            model?.exportOpen = false
             document?.surface = LinkSurface(url: url, mode: mode)
         }
 
@@ -303,4 +318,21 @@ final class ClosureMenuItem: NSMenuItem {
     }
     required init(coder: NSCoder) { fatalError() }
     @objc private func fire() { handler() }
+}
+
+/// WKWebView subclass that adds "Export as image…" to the context menu when the
+/// user right-clicks a text selection in the doc (Track S §8.3.3).
+final class DocWebView: WKWebView {
+    var hasSelection: () -> Bool = { false }
+    var onExportSelection: (() -> Void)?
+
+    override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
+        super.willOpenMenu(menu, with: event)
+        guard hasSelection() else { return }
+        let item = NSMenuItem(title: "Export as image…", action: #selector(exportSelectionAction), keyEquivalent: "")
+        item.target = self
+        menu.insertItem(item, at: 0)
+        menu.insertItem(.separator(), at: 1)
+    }
+    @objc private func exportSelectionAction() { onExportSelection?() }
 }

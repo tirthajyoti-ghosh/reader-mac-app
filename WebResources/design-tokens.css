@@ -1,6 +1,6 @@
 /* ============================================================================
    READER — design-tokens.css
-   THE TOKEN CONTRACT · canonical, per PRODUCT_SPEC.md §7 (v1.2 — §7.1–7.11, both themes)
+   THE TOKEN CONTRACT · canonical, per PRODUCT_SPEC.md §7 (v1.3 — §7.1–7.12, both themes)
 
    SINGLE SOURCE OF TRUTH for every visual property. Invariant I7 / §6.3:
    no color, font, size, spacing, width, radius, or shadow is hardcoded outside
@@ -9,7 +9,7 @@
    Colors are the EXACT tokens extracted from Claude Desktop.
    Structure: §7.1–7.3 (color / type / ergonomics) + §7.4–7.9 (radii / spacing /
    dimensions / chrome+code type / elevation / semantic) + §7.10 (controls, P0
-   settings) + §7.11 (reading / accessibility). :root = dark (default);
+   settings) + §7.11 (reading / accessibility) + §7.12 (export card). :root = dark (default);
    [data-theme="light"] overrides every themed token. Both complete.
    ============================================================================ */
 
@@ -286,6 +286,22 @@
   --bg:#000000; --surface:#0B0B0B; --code-bg:#000000;
   --text:#FFFFFF; --text-secondary:#F2F2F2; --text-muted:#C9C9C9; --border:#FFFFFF;
   color-scheme: dark;
+}
+
+/* ===== §7.12 Export card — Sharing / image export (§8.3.3) ================
+   The shareable image is rendered from the SAME tokens as the reading surface,
+   so a theme/preset change retints it automatically. No hardcoded values;
+   framing presets swap a couple of these. */
+:root {
+  --card-bg:        var(--bg);       /* alias only — .xcard reads --bg DIRECTLY so it retints when a theme/preset is scoped at or above the card (not just at :root) */
+  --card-pad:       56px;            /* Comfortable preset (default)         */
+  --card-pad-snug:  32px;            /* Snug preset                          */
+  --card-radius:    16px;            /* card corner radius                   */
+  --card-shadow:    0 20px 60px rgba(0,0,0,.28);  /* preview elevation (not baked into export unless chosen) */
+  --card-inset:     var(--hairline); /* faint edge on the card               */
+  --card-w-social:  1080px;          /* width preset — social (1:1-ish feed) */
+  --card-w-docs:    720px;           /* width preset — docs / narrow         */
+  --card-scale:     2;               /* export raster scale (retina/2x)      */
 }
 
 /* ============================================================================
@@ -1132,3 +1148,76 @@
   font-size: var(--fs-dense); color: var(--text-secondary);
 }
 .md .fm-row.fm-parent .fm-key { color: var(--text-secondary); }   /* a map key (no value) */
+
+/* ============================================================================
+   EXPORT CARD (§8.3.3 · Track S) — the shareable image frame + preview UI
+   The card IS the reading surface in a frame; renders from the same tokens, so
+   themes/presets retint it. No watermark, no branding (§8.3.3).
+   ============================================================================ */
+
+/* the exportable card — content framed as a composed image */
+.xcard {
+  background: var(--bg);
+  border: var(--card-inset) solid var(--border);
+  border-radius: var(--card-radius);
+  padding: var(--card-pad);
+  overflow: hidden;
+}
+.xcard.snug { padding: var(--card-pad-snug); }
+/* width presets applied to the card wrapper */
+.xcard.w-social { width: var(--card-w-social); }
+.xcard.w-docs   { width: var(--card-w-docs); }
+/* the rendered doc inside the card fills the frame (no extra column margin) */
+.xcard .md { max-width: none; margin: 0; padding: 0; }
+
+/* preview surface — a calm stage the card floats on */
+.xpreview {
+  background: var(--code-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-8);
+  display: flex; align-items: flex-start; justify-content: center;
+  overflow: auto;
+}
+.xcard.shadowed { box-shadow: var(--card-shadow); }
+
+/* export dialog shell (reuses settings-pop vocabulary, wider) */
+.xdialog {
+  width: 640px; max-width: 92vw;
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--ui-font);
+  overflow: hidden;
+}
+.xdialog-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  border-bottom: var(--hairline) solid var(--border);
+}
+.xdialog-head .t { font-size: var(--ui-size); font-weight: var(--fw-semibold); color: var(--text); }
+.xdialog-head .sub { font-size: var(--ui-small); color: var(--text-muted); margin-left: var(--sp-2); }
+/* controls row under the preview */
+.xcontrols {
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: var(--hairline) solid var(--border);
+  flex-wrap: wrap;
+}
+.xcontrols .spacer { flex: 1; }
+.xactions { display: flex; align-items: center; gap: var(--sp-2); }
+/* action buttons — quiet secondary + clay primary (from control tokens) */
+.btn {
+  font-family: var(--ui-font); font-size: var(--ui-size); font-weight: 500;
+  height: var(--ctl-h); padding: 0 var(--sp-3);
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  border-radius: var(--ctl-radius); cursor: pointer;
+  background: var(--bg); color: var(--text-secondary);
+  border: var(--hairline) solid var(--border);
+}
+.btn:hover { color: var(--text); border-color: var(--text-muted); }
+.btn.primary {
+  background: var(--accent); color: var(--bg); border-color: transparent;
+}
+.btn.primary:hover { background: var(--accent-emphasis); color: var(--bg); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }

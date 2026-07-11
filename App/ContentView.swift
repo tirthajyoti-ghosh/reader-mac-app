@@ -67,8 +67,23 @@ struct ContentView: View {
         .background(p.bg)
         .preferredColorScheme(model.colorScheme)
         .ignoresSafeArea()
+        // Image-export dialog (§8.3.3) — centered modal over everything; the scrim
+        // tap + Esc close it. Mutually exclusive with settings + link sheet.
+        .overlay {
+            if model.exportOpen {
+                ZStack {
+                    Color.black.opacity(model.colorScheme == .dark ? 0.5 : 0.28)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.closeExport() }
+                    ExportDialog()
+                }
+                .transition(.opacity)
+            }
+        }
         .animation(.easeInOut(duration: 0.22), value: model.sidebarVisible)
         .animation(.easeOut(duration: 0.15), value: model.settingsOpen)
+        .animation(.easeOut(duration: 0.15), value: model.exportOpen)
     }
 }
 

@@ -4,12 +4,12 @@
 
 | Field | Value |
 |---|---|
-| Document status | **v1.2 — signed off** |
+| Document status | **v1.3 — signed off** |
 | Date | 2026-06-29 |
 | Owner | Tirtha |
 | Platform | macOS 14+ (Apple Silicon + Intel) |
 | License / model | Open source, free |
-| Revision | v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.2a (2026-06-30) — reading layout = full-width panel with responsive side padding (`--reading-pad-x`); `--measure` demoted to optional cap (§7.3). v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
+| Revision | v1.3 (2026-07-11) — Layer 3 shipped: Track T theming (§8.3.1) + Track A11y focus pack (§8.3.2, reconciled to Design) + Track S image export (§8.3.3, **image-only**; shareable link deferred to 1.x). Token Contract extended: §7.10 (controls), §7.11 (reading/a11y), §7.12 (export card); reading-width cap unified onto `--md-max` (`--measure` retired). v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.2a (2026-06-30) — reading layout = full-width panel with responsive side padding (`--reading-pad-x`). v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
 | Supersedes | All prior ad-hoc decisions in design/build threads |
 
 ---
@@ -321,11 +321,13 @@ Canonical layout tokens (the implementation also defines finer component tokens 
 - **Dim-around-current-paragraph.**
 - Acceptance: [ ] Each toggle works and is off by default. [ ] Font/width/spacing controls map to tokens. [ ] Line-focus and bionic mode render correctly and are reversible. [ ] Nothing here clutters the default reading surface.
 
-**8.3.3 Beautiful sharing (growth loop).**
-- Render a **selection or whole document** → **image in the current theme**, supporting **full GFM** (headings, tables, code, lists, callouts, Mermaid, math) — not just a single code block.
-- No watermark.
-- Optional: shareable rendered link.
-- Acceptance: [ ] Exported image matches the on-screen theme exactly. [ ] Full-GFM content (incl. a table + Mermaid + math in one card) exports as one clean image. [ ] No watermark/branding burned in.
+**8.3.3 Beautiful sharing (growth loop) — image export only (v1.3).**
+- Render a **selection or whole document** → **image in the current theme** (+ active tweaks + reading preset), supporting **full GFM** (headings, tables, code, lists, callouts, Mermaid, math) — not just a single code block. The card *is* the reading surface in a frame (`.xcard`, §7.12), rendered from the same tokens.
+- Entry points: right-click a text selection → **Export as image…**; toolbar overflow (⋯) → **Export whole document…**. Both open one preview dialog reusing the P0 control vocabulary.
+- Framing presets (minimal): Padding (Snug / Comfortable), Width (Social 1080 / Docs 720), Card shadow (on/off). Persisted.
+- Outputs: **Save…** (PNG to disk) and **Copy** (PNG to clipboard). Captured at `--card-scale` = 2 (retina).
+- **No watermark, no branding.** **No shareable link / hosting / upload** — that would violate local-first (I1) / private (I2); **deferred to 1.x.**
+- Acceptance: [ ] Exported PNG matches the on-screen theme exactly (dark, light, Dracula, sepia). [ ] A single card with a table + Mermaid + syntax-highlighted code + KaTeX + a callout exports as one clean image with correct fonts, colors, and diagrams. [ ] No watermark. [ ] Save writes a PNG, Copy puts a PNG on the clipboard. [ ] Presets change the card and persist. [ ] Works fully offline.
 
 #### ▶ Release: **1.0 = Layers 0–3.**
 Positioning at 1.0: *"A calm, private place to read what AI gives you — and it's yours."*
@@ -353,7 +355,7 @@ Positioning at 1.0: *"A calm, private place to read what AI gives you — and it
 | Release | Contents | Definition of done |
 |---|---|---|
 | **0.x (internal)** | Layers 0–2 | Backbone audit passes (8.0.2); core reading + links + outline solid. **(Done — v1.2.)** |
-| **1.0** | Layers 0–3 | All Layer 0–3 acceptance criteria pass; positioning copy + repo README + screenshots ready. |
+| **1.0** | Layers 0–3 | All Layer 0–3 acceptance criteria pass; positioning copy + repo README + screenshots ready. **Layer 3 shipped (v1.3): Theming (8.3.1), A11y/Focus (8.3.2), Image export (8.3.3) — the last 1.0 item.** |
 | **1.x** | Layer 4 | Per-feature acceptance; no regression to Invariants. |
 | **2.x** | Layer 5 | Gated on community demand. |
 
@@ -413,4 +415,4 @@ By signing, the parties commit to the **Invariants (§5)**, the **Token Contract
 
 ---
 
-*End of specification — Reader v1.2 (signed off), 2026-06-29.*
+*End of specification — Reader v1.3 (signed off), 2026-07-11.*

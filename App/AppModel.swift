@@ -98,6 +98,9 @@ final class AppModel: ObservableObject {
         self.dimParagraphs = UserDefaults.standard.bool(forKey: "a11yDimParagraphs")
         self.bionic = UserDefaults.standard.bool(forKey: "a11yBionic")
         self.readingPreset = UserDefaults.standard.string(forKey: "readingPreset")
+        self.exportPadding = UserDefaults.standard.string(forKey: "exportPadding") ?? "comfortable"
+        self.exportWidth = UserDefaults.standard.string(forKey: "exportWidth") ?? "social"
+        self.exportShadow = (UserDefaults.standard.object(forKey: "exportShadow") as? Bool) ?? true
         reloadSidebar()
         watchFolder()
         updatePalette()
@@ -280,6 +283,80 @@ final class AppModel: ObservableObject {
             || Self.a11yTokenKeys.contains { tweaks[$0] != nil }
     }
 
+    // MARK: - Image export (Track S §8.3.3)
+
+    @Published var exportOpen = false
+    @Published var exportKind = ""            // "selection" | "document" — subtitle only
+    @Published var exportHTML = ""            // the already-rendered .md HTML to frame
+    @Published var exportPadding = "comfortable"  // "snug" | "comfortable"
+    @Published var exportWidth = "social"         // "social" | "docs"
+    @Published var exportShadow = true
+    @Published var exportCardSize = CGSize(width: 1080, height: 480)
+    weak var exportWebView: WKWebView?
+
+    /// Export webview theming = theme + tweaks + custom + preset (NOT the focus
+    /// modes — an export reflects the palette/ergonomics, not line-focus/bionic).
+    func pushExportTheming(to wv: WKWebView) {
+        wv.evaluateJavaScript("window.__applyTheme('\(themeId)')")
+        if let css = customCSS { wv.evaluateJavaScript("window.__applyCustom(\(jsStringLiteral(css)))") }
+        for (k, v) in tweaks { wv.evaluateJavaScript("window.__setOverride('\(k)', \(jsStringLiteral(v)))") }
+        if let p = readingPreset { wv.evaluateJavaScript("window.__applyReadingPreset('\(p)')") }
+    }
+
+    func openExport(kind: String, html: String) {
+        guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { NSSound.beep(); return }
+        exportKind = kind
+        exportHTML = html
+        settingsOpen = false                 // mutually exclusive (Track T pattern)
+        selectedDocument?.surface = nil
+        exportOpen = true
+    }
+    func closeExport() { exportOpen = false }
+    /// Toolbar ⋯ → Export whole document…: grab the front doc's rendered HTML.
+    func exportWholeDocument() {
+        guard let wv = activeWebView else { NSSound.beep(); return }
+        wv.evaluateJavaScript("window.__docHTML()") { [weak self] res, _ in
+            guard let self, let html = res as? String, !html.isEmpty else { NSSound.beep(); return }
+            self.openExport(kind: "document", html: html)
+        }
+    }
+
+    func setExportPadding(_ v: String) { exportPadding = v; UserDefaults.standard.set(v, forKey: "exportPadding") }
+    func setExportWidth(_ v: String)   { exportWidth = v;   UserDefaults.standard.set(v, forKey: "exportWidth") }
+    func setExportShadow(_ v: Bool)    { exportShadow = v;  UserDefaults.standard.set(v, forKey: "exportShadow") }
+
+    /// Capture the framed card as a 2× (retina) PNG via WebKit's own painter.
+    func captureExport(_ completion: @escaping (NSImage?) -> Void) {
+        guard let wv = exportWebView else { return completion(nil) }
+        let w = exportCardSize.width, h = exportCardSize.height
+        guard w > 0, h > 0 else { return completion(nil) }
+        let cfg = WKSnapshotConfiguration()
+        cfg.rect = CGRect(x: 0, y: 0, width: w, height: h)
+        let scale = wv.window?.backingScaleFactor ?? 2
+        cfg.snapshotWidth = NSNumber(value: Double(w * CGFloat(Self.exportScale) / scale))  // → 2× pixels
+        wv.takeSnapshot(with: cfg) { image, _ in completion(image) }
+    }
+    static let exportScale: Int = 2
+    static func pngData(_ image: NSImage) -> Data? {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        return NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])
+    }
+    func copyExport() {
+        captureExport { img in
+            guard let img, let png = Self.pngData(img) else { NSSound.beep(); return }
+            let pb = NSPasteboard.general; pb.clearContents(); pb.setData(png, forType: .png)
+        }
+    }
+    func saveExport() {
+        captureExport { img in
+            guard let img, let png = Self.pngData(img) else { NSSound.beep(); return }
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [UTType.png]
+            panel.nameFieldStringValue = "reader-export.png"
+            if panel.runModal() == .OK, let url = panel.url { try? png.write(to: url) }
+        }
+    }
+
     // MARK: - Custom theme import (§8.5.1 security: token declarations only)
 
     /// Returns an error message on rejection, or nil on success.
@@ -329,10 +406,10 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(outlineVisible, forKey: "outlineVisible")
     }
 
-    /// Settings popover ↔ a link sheet are mutually exclusive (integration fix #3).
+    /// Settings popover ↔ a link sheet ↔ export dialog are mutually exclusive.
     func toggleSettings() {
         settingsOpen.toggle()
-        if settingsOpen { selectedDocument?.surface = nil }
+        if settingsOpen { selectedDocument?.surface = nil; exportOpen = false }
     }
 
     /// Scroll the front document to a heading (no reload — the webview stays mounted).

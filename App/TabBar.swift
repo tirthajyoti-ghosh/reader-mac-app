@@ -29,6 +29,7 @@ struct TopBar: View {
             HStack(spacing: 2) {
                 ThemeToggle()
                 SettingsToggle()
+                MoreMenu()
                 OutlineToggle()
             }
             .padding(.horizontal, 12)
@@ -159,6 +160,28 @@ private struct ThemeToggle: View {
         }
         .buttonStyle(.plain)
         .help("Toggle light / dark")
+        .onHover { hover = $0 }
+    }
+}
+
+/// Toolbar overflow (⋯) — currently: Export whole document… (Track S §8.3.3).
+private struct MoreMenu: View {
+    @EnvironmentObject var model: AppModel
+    @State private var hover = false
+    var body: some View {
+        let p = model.palette
+        Menu {
+            Button("Export whole document…") { model.exportWholeDocument() }
+                .disabled(model.selectedDocument == nil)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 30, height: 30)
+                .foregroundColor(hover ? p.text : p.muted)
+                .background(RoundedRectangle(cornerRadius: 7).fill(hover ? p.surface : Color.clear))
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .help("More…")
         .onHover { hover = $0 }
     }
 }

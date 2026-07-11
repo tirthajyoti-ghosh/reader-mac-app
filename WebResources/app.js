@@ -285,6 +285,15 @@
   // App-only (the panel is native SwiftUI). Absent in Quick Look → no-op.
   var OUTLINE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.outline);
   function postOutline(p) { if (OUTLINE) window.webkit.messageHandlers.outline.postMessage(p); }
+
+  // Track S: tell the native side when a doc selection exists (gates the
+  // "Export as image…" context-menu item).
+  var SELCH = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.selchange);
+  if (SELCH) document.addEventListener("selectionchange", function () {
+    var s = window.getSelection();
+    var has = !!(s && s.rangeCount && !s.isCollapsed && doc.contains(s.getRangeAt(0).commonAncestorContainer));
+    window.webkit.messageHandlers.selchange.postMessage(has);
+  });
   var headingEls = [], activeHeadingId = null, spyScheduled = false, spyObserver = null;
 
   // Snapshot the rendered headings (ids already assigned by addHeadingIds) and
@@ -975,6 +984,72 @@
     return { count: findHits.length, index: findPos + 1 };
   };
   window.__clearFind = function () { clearFind(); };
+
+  /* ---- Track S (§8.3.3) image export -----------------------------------------
+     The card is captured from ALREADY-RENDERED .md HTML (Mermaid = live SVG with
+     baked colors, KaTeX = rendered glyphs, code highlighted), so WebKit's own
+     painter (takeSnapshot on the Swift side) rasterizes it faithfully. The doc
+     webview exposes the source HTML; the offscreen export webview builds the card. */
+
+  // Drop the opt-in reading-mode artifacts so the export is the clean rendered doc
+  // (theme + tweaks + preset carry via tokens; line-focus/bionic/find do not).
+  function stripReadingArtifacts(el) {
+    el.querySelectorAll("span.ln").forEach(function (s) {
+      var p = s.parentNode; while (s.firstChild) p.insertBefore(s.firstChild, s); p.removeChild(s);
+    });
+    el.querySelectorAll("b.bl").forEach(function (b) { b.parentNode.replaceChild(document.createTextNode(b.textContent), b); });
+    el.querySelectorAll("mark.find-hit").forEach(function (m) { m.parentNode.replaceChild(document.createTextNode(m.textContent), m); });
+    el.querySelectorAll(".current").forEach(function (e) { e.classList.remove("current"); });
+    el.normalize();
+  }
+
+  // (doc webview) rendered HTML of the current selection, or null if none.
+  window.__selectionHTML = function () {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+    var range = sel.getRangeAt(0);
+    if (!doc.contains(range.commonAncestorContainer)) return null;
+    var wrap = document.createElement("div");
+    wrap.appendChild(range.cloneContents());
+    stripReadingArtifacts(wrap);
+    var html = wrap.innerHTML.trim();
+    return html || null;
+  };
+  // (doc webview) rendered HTML of the whole document, minus chrome rows.
+  window.__docHTML = function () {
+    var clone = doc.cloneNode(true);
+    clone.querySelectorAll(".doc-path, .breadcrumb").forEach(function (e) { e.remove(); });
+    stripReadingArtifacts(clone);
+    return clone.innerHTML;
+  };
+
+  // (export webview) build the .xcard from rendered HTML; theme/tweaks/preset are
+  // applied on documentElement by the native side, so the card retints for free.
+  window.__buildExportCard = function (html, opts) {
+    opts = opts || {};
+    var rdr = document.querySelector(".rdr"); if (rdr) rdr.style.display = "none";
+    document.body.style.margin = "0";
+    var host = document.getElementById("__xhost");
+    if (!host) { host = document.createElement("div"); host.id = "__xhost"; document.body.appendChild(host); }
+    host.style.cssText = "position:fixed; top:0; left:0; display:inline-block; " +
+      (opts.shadow ? "background:var(--code-bg); padding:56px;" : "background:transparent; padding:0;");
+    host.innerHTML = '<div class="xcard"><article class="md"></article></div>';
+    var card = host.querySelector(".xcard"), mdEl = host.querySelector(".md");
+    mdEl.innerHTML = html || "";
+    stripReadingArtifacts(mdEl);
+    card.classList.toggle("snug", !!opts.snug);
+    card.classList.remove("w-social", "w-docs");
+    card.classList.add(opts.width === "docs" ? "w-docs" : "w-social");
+    card.classList.toggle("shadowed", !!opts.shadow);
+    return true;
+  };
+  // (export webview) the capture rect (host = card + optional shadow margin) at (0,0).
+  window.__exportSize = function () {
+    var host = document.getElementById("__xhost");
+    if (!host) return null;
+    var r = host.getBoundingClientRect();
+    return { w: Math.ceil(r.width), h: Math.ceil(r.height) };
+  };
 
   window.__ready = true;
 })();
