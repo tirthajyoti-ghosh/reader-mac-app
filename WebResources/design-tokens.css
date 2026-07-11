@@ -138,6 +138,7 @@
   --peek-offline-w:  280px;   /* offline peek card width     */
   --peek-snippet-max: 168px;  /* internal peek snippet height */
   --pill-pad:        1px 6px; /* inline code / kbd padding   */
+  --fm-key-min:      8.5rem;  /* frontmatter key column width */
 }
 
 /* ===== §7.7 Chrome, code & dense type ====================================
@@ -1068,12 +1069,39 @@
    supply the color via [data-reading] token blocks in themes.css).
    ============================================================================ */
 /* Line focus / dim-surrounding: the block at the reading line keeps .current
-   (set by app.js on scroll); the rest fade. doc-path / breadcrumb never dim. */
-.md.focus-line > *:not(.current):not(.doc-path):not(.breadcrumb) { opacity: var(--focus-dim); }
-.md.dim-para   > *:not(.current):not(.doc-path):not(.breadcrumb) { opacity: var(--dim-para); }
+   (set by app.js on scroll); the rest fade. Chrome-ish rows never dim. */
+.md.focus-line > *:not(.current):not(.doc-path):not(.breadcrumb):not(.frontmatter) { opacity: var(--focus-dim); }
+.md.dim-para   > *:not(.current):not(.doc-path):not(.breadcrumb):not(.frontmatter) { opacity: var(--dim-para); }
 .md.focus-line > *, .md.dim-para > * { transition: opacity var(--focus-fade); }
 
 /* Bionic: word-heads are wrapped in <b class="bl"> by app.js; inert until the
    .bionic class is on, so toggling is instant + the wrap is fully reversible. */
 .md .bl { font-weight: inherit; }
 .md.bionic .bl { font-weight: var(--fw-bold); }
+
+/* ============================================================================
+   FRONTMATTER — YAML metadata block (parsed + stripped by app.js so it never
+   mis-renders as a setext H1). A quiet properties card above the document.
+   ============================================================================ */
+.md .frontmatter {
+  margin: 0 0 var(--sp-8);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--surface);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius);
+}
+.md .fm-row {
+  display: flex; gap: var(--sp-4); align-items: baseline;
+  padding: var(--sp-1) 0;
+  padding-left: calc(var(--fm-depth, 0) * var(--sp-6));
+  line-height: var(--lh-dense);
+}
+.md .fm-key {
+  flex: 0 0 auto; min-width: var(--fm-key-min);
+  font-family: var(--mono); font-size: var(--fs-meta); color: var(--text-muted);
+}
+.md .fm-val {
+  flex: 1 1 auto; min-width: 0; word-break: break-word;
+  font-size: var(--fs-dense); color: var(--text-secondary);
+}
+.md .fm-row.fm-parent .fm-key { color: var(--text-secondary); }   /* a map key (no value) */

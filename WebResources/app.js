@@ -538,12 +538,55 @@
     doc.insertBefore(wrap, doc.firstChild);
   }
 
+  /* ---- YAML frontmatter: parse + strip so markdown-it never reads the closing
+     `---` as a setext H1; render it as a quiet properties block instead. ------ */
+  function extractFrontmatter(text) {
+    var m = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text);
+    if (!m) return { rows: null, body: text };
+    var yaml = m[1];
+    var first = yaml.split(/\r?\n/).find(function (l) { return l.trim(); });
+    if (!first || !/^\s*[^:\s#][^:]*:/.test(first)) return { rows: null, body: text };  // not YAML-ish
+    return { rows: parseFrontmatter(yaml), body: text.slice(m[0].length) };
+  }
+  function parseFrontmatter(yaml) {
+    var rows = [];
+    yaml.split(/\r?\n/).forEach(function (line) {
+      if (!line.trim() || line.trim().charAt(0) === "#") return;
+      var depth = Math.floor((line.match(/^ */)[0].length) / 2);
+      var t = line.trim(), m = /^([^:]+):\s*(.*)$/.exec(t);
+      if (m) {
+        var val = m[2].trim();
+        if ((val.charAt(0) === '"' && val.slice(-1) === '"') ||
+            (val.charAt(0) === "'" && val.slice(-1) === "'")) val = val.slice(1, -1);
+        rows.push({ key: m[1].trim(), value: val, depth: depth });
+      } else if (t.charAt(0) === "-") {
+        rows.push({ key: "", value: t.replace(/^-\s*/, "• "), depth: depth });
+      } else {
+        rows.push({ key: "", value: t, depth: depth });
+      }
+    });
+    return rows;
+  }
+  function renderFrontmatter(rows) {
+    var html = '<div class="frontmatter">';
+    rows.forEach(function (r) {
+      var parent = r.key && !r.value ? " fm-parent" : "";
+      html += '<div class="fm-row' + parent + '" style="--fm-depth:' + r.depth + '">';
+      if (r.key) html += '<span class="fm-key">' + escapeHtml(r.key) + '</span>';
+      if (r.value) html += '<span class="fm-val">' + escapeHtml(r.value) + '</span>';
+      html += '</div>';
+    });
+    return html + '</div>';
+  }
+
   window.__render = function (text, path, docDir, breadcrumb, restoreScroll) {
     findHits = [];           // doc is replaced below; any old marks go with it
     findPos = -1;
     hidePeek();
     lastMarkdown = typeof text === "string" ? text : "";
-    doc.innerHTML = md.render(lastMarkdown);
+    var fm = extractFrontmatter(lastMarkdown);
+    doc.innerHTML = md.render(fm.body);
+    if (fm.rows && fm.rows.length) doc.insertAdjacentHTML("afterbegin", renderFrontmatter(fm.rows));
     addHeadingIds(doc);
     classifyLinks(doc, docDir);
     transformCallouts(doc);
@@ -610,7 +653,7 @@
     var kids = doc.children, best = null, bestDist = Infinity;
     for (var i = 0; i < kids.length; i++) {
       var el = kids[i];
-      if (el.classList && (el.classList.contains("doc-path") || el.classList.contains("breadcrumb"))) continue;
+      if (el.classList && (el.classList.contains("doc-path") || el.classList.contains("breadcrumb") || el.classList.contains("frontmatter"))) continue;
       var r = el.getBoundingClientRect();
       if (r.height === 0) continue;
       var d = (r.top <= mid && r.bottom >= mid) ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
@@ -657,7 +700,7 @@
         while (p && p !== doc) {
           var t = p.nodeName;
           if (t === "CODE" || t === "PRE" || t === "SCRIPT" || t === "STYLE" || t === "MARK") return NodeFilter.FILTER_REJECT;
-          if (p.classList && (p.classList.contains("bl") || p.classList.contains("doc-path") || p.classList.contains("breadcrumb"))) return NodeFilter.FILTER_REJECT;
+          if (p.classList && (p.classList.contains("bl") || p.classList.contains("doc-path") || p.classList.contains("breadcrumb") || p.classList.contains("frontmatter"))) return NodeFilter.FILTER_REJECT;
           p = p.parentNode;
         }
         return NodeFilter.FILTER_ACCEPT;
