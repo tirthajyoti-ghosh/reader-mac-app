@@ -70,6 +70,36 @@ enum Theming {
         }
         return order.compactMap { byId[$0] } + byId.values.filter { !order.contains($0.id) }
     }
+
+    /// Validate + normalize an imported custom theme (§8.5.1): reject @import and
+    /// any remote url()/network reference; keep only `--token: value;` declarations.
+    /// Returns the `:root { … }` CSS on success, or a user-facing error message.
+    static func validateCustomTheme(_ raw: String) -> (css: String?, error: String?) {
+        if raw.lowercased().contains("@import") {
+            return (nil, "Rejected: @import isn't allowed in a theme file.")
+        }
+        if raw.range(of: #"url\(\s*['"]?\s*(https?:)?//"#, options: .regularExpression) != nil {
+            return (nil, "Rejected: remote url() / network references aren't allowed.")
+        }
+        let decls = tokenDecls(raw)
+        guard !decls.isEmpty else { return (nil, "No theme tokens (`--…`) found in the file.") }
+        return (":root {\n" + decls.joined(separator: "\n") + "\n}", nil)
+    }
+
+    /// Extract only `--token: value;` declarations; drop any value with url()/@ (belt-and-suspenders).
+    static func tokenDecls(_ css: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: #"(--[A-Za-z0-9-]+)\s*:\s*([^;{}]+);"#) else { return [] }
+        let ns = css as NSString
+        var out: [String] = []
+        re.enumerateMatches(in: css, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
+            guard let m else { return }
+            let name = ns.substring(with: m.range(at: 1))
+            let val = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
+            if val.lowercased().contains("url(") || val.contains("@") { return }
+            out.append("  \(name): \(val);")
+        }
+        return out
+    }
 }
 
 extension Color {

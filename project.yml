@@ -53,3 +53,28 @@ targets:
         INFOPLIST_FILE: QuickLook/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         CODE_SIGN_ENTITLEMENTS: QuickLook/QuickLook.entitlements
+
+  # Host-less logic tests for the pure model code (theming parse, custom-theme
+  # security, palette/colour, relative-time). Compiles the self-contained source
+  # files directly so no app launch is needed.
+  ReaderModelTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: tests/Swift
+      - path: App/Theming.swift
+      - path: App/Theme.swift
+    settings:
+      base:
+        PRODUCT_NAME: ReaderModelTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.tirthajyoti.Reader.ModelTests
+        GENERATE_INFOPLIST_FILE: "YES"
+
+schemes:
+  ReaderModelTests:
+    build:
+      targets:
+        ReaderModelTests: all
+    test:
+      targets:
+        - ReaderModelTests

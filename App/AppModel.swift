@@ -359,17 +359,12 @@ final class AppModel: ObservableObject {
 
     // MARK: - Custom theme import (§8.5.1 security: token declarations only)
 
-    /// Returns an error message on rejection, or nil on success.
+    /// Returns an error message on rejection, or nil on success. (Validation lives
+    /// in `Theming.validateCustomTheme` — pure + unit-tested.)
     func importCustomTheme(_ url: URL) -> String? {
         guard let raw = try? String(contentsOf: url, encoding: .utf8) else { return "Couldn't read the file." }
-        let lower = raw.lowercased()
-        if lower.contains("@import") { return "Rejected: @import isn't allowed in a theme file." }
-        if raw.range(of: #"url\(\s*['"]?\s*(https?:)?//"#, options: .regularExpression) != nil {
-            return "Rejected: remote url() / network references aren't allowed."
-        }
-        let decls = extractTokenDecls(raw)
-        guard !decls.isEmpty else { return "No theme tokens (`--…`) found in the file." }
-        let css = ":root {\n" + decls.joined(separator: "\n") + "\n}"
+        let (css, error) = Theming.validateCustomTheme(raw)
+        guard let css else { return error }
         customCSS = css
         UserDefaults.standard.set(css, forKey: "customThemeCSS")
         evalAll("window.__applyCustom(\(jsStringLiteral(css)))")
@@ -379,20 +374,6 @@ final class AppModel: ObservableObject {
         customCSS = nil
         UserDefaults.standard.removeObject(forKey: "customThemeCSS")
         evalAll("window.__clearCustom()")
-    }
-    /// Extract only `--token: value;` declarations; drop any value with url() (belt-and-suspenders).
-    private func extractTokenDecls(_ css: String) -> [String] {
-        guard let re = try? NSRegularExpression(pattern: #"(--[A-Za-z0-9-]+)\s*:\s*([^;{}]+);"#) else { return [] }
-        let ns = css as NSString
-        var out: [String] = []
-        re.enumerateMatches(in: css, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
-            guard let m else { return }
-            let name = ns.substring(with: m.range(at: 1))
-            let val = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
-            if val.lowercased().contains("url(") || val.contains("@") { return }
-            out.append("  \(name): \(val);")
-        }
-        return out
     }
 
     func toggleSidebar() {
