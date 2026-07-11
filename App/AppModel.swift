@@ -74,6 +74,8 @@ final class AppModel: ObservableObject {
     private var folderWatcher: FileWatcher?
 
     var selectedDocument: Document? { documents.first { $0.id == selectedID } }
+    /// Blank doc that keeps the single reading webview mounted before any file opens.
+    let placeholderDoc = Document()
 
     private init() {
         self.themeId = UserDefaults.standard.string(forKey: "themeId") ?? "claude-dark"

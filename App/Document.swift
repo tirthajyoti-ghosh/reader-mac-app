@@ -23,6 +23,9 @@ final class Document: ObservableObject, Identifiable {
     @Published private(set) var breadcrumb: String?   // "Back to <name>" when navigated in
     /// Scroll to restore on the NEXT render after a navigation/back (px from top).
     var restoreScroll: Double = 0
+    /// Last known scroll position — saved continuously so switching tabs (one
+    /// shared webview) restores this doc exactly where it was.
+    var savedScroll: Double = 0
 
     // Per-tab link surface (external link as sheet/split). nil = none open.
     @Published var surface: LinkSurface?
@@ -39,6 +42,15 @@ final class Document: ObservableObject, Identifiable {
         self.title = url.lastPathComponent
         self.text = Document.read(url)
         rearmWatcher()
+    }
+
+    /// A blank, watcher-less placeholder — keeps the single reading webview mounted
+    /// (and its compositor warm) before any real document is opened, so the first
+    /// open is a fast re-render instead of a cold webview mount.
+    init() {
+        self.url = URL(fileURLWithPath: "/")
+        self.title = ""
+        self.text = ""
     }
 
     var docDir: String { url.deletingLastPathComponent().path }

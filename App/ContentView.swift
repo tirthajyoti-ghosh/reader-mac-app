@@ -24,15 +24,14 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     ZStack {
                         p.bg
-                        // Every open doc keeps its own mounted webview so switching
-                        // tabs is instant (no re-render) and scroll is preserved.
-                        ForEach(model.documents) { doc in
-                            let selected = doc.id == model.selectedID
-                            ReadingArea(document: doc, isSelected: selected)
-                                .opacity(selected ? 1 : 0)
-                                .allowsHitTesting(selected)
-                                .zIndex(selected ? 1 : 0)
-                        }
+                        // ONE persistent webview renders the selected doc; switching
+                        // tabs re-renders into it (~10ms) instead of mounting a fresh
+                        // webview (~190ms first-composite). Scroll is saved per-doc and
+                        // restored on switch. Stable identity (no .id) → SwiftUI reuses
+                        // the same webview across documents.
+                        // Always mounted (placeholder when empty) so the webview
+                        // composites at launch → the first open is a fast re-render.
+                        ReadingArea(document: model.selectedDocument ?? model.placeholderDoc, isSelected: true)
                         if model.documents.isEmpty {
                             EmptyState()
                         }

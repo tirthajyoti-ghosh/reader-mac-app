@@ -294,6 +294,16 @@
     var has = !!(s && s.rangeCount && !s.isCollapsed && doc.contains(s.getRangeAt(0).commonAncestorContainer));
     window.webkit.messageHandlers.selchange.postMessage(has);
   });
+
+  // Track S / perf: the doc webview is shared across tabs, so post the scroll
+  // position (throttled) → the native side saves it per-doc for restore on switch.
+  var SCROLLPOS = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.scrollpos);
+  var scrollPosPending = false;
+  if (SCROLLPOS) scroller.addEventListener("scroll", function () {
+    if (scrollPosPending) return;
+    scrollPosPending = true;
+    setTimeout(function () { scrollPosPending = false; window.webkit.messageHandlers.scrollpos.postMessage(scroller.scrollTop); }, 100);
+  }, { passive: true });
   var headingEls = [], activeHeadingId = null, spyScheduled = false, spyObserver = null;
 
   // Snapshot the rendered headings (ids already assigned by addHeadingIds) and

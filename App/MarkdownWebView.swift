@@ -9,36 +9,30 @@ import AppKit
 struct MarkdownWebView: NSViewRepresentable {
     @ObservedObject var document: Document
     let model: AppModel
-    /// Whether this tab is the front one. Every open doc keeps its own mounted
-    /// webview (rendered once, scroll preserved); only the selected one drives
-    /// find / outline / scroll-to via `model.activeWebView`.
+    /// A single persistent webview renders whichever document is selected; on a
+    /// tab switch it re-renders (fast) and restores that doc's saved scroll.
     var isSelected: Bool = true
 
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
 
+    // ONE of these is created for the whole app (ContentView mounts a single
+    // persistent ReadingArea); documents render into it, so opens are fast.
     func makeNSView(context: Context) -> WKWebView {
-        let config = WebEnv.makeConfig()   // shared process pool → warm after the first
+        let config = WebEnv.makeConfig()
         let handler = WeakScriptHandler(context.coordinator)
-        config.userContentController.add(handler, name: "revealFile")
-        config.userContentController.add(handler, name: "link")
-        config.userContentController.add(handler, name: "peek")
-        config.userContentController.add(handler, name: "outline")
-        config.userContentController.add(handler, name: "selchange")
-
+        for name in ["revealFile", "link", "peek", "outline", "selchange", "scrollpos"] {
+            config.userContentController.add(handler, name: name)
+        }
         let webView = DocWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsMagnification = true
         webView.setValue(false, forKey: "drawsBackground")
-        // right-click on a text selection → "Export as image…" (Track S)
         webView.hasSelection = { [weak coord = context.coordinator] in coord?.hasSelection ?? false }
         webView.onExportSelection = { [weak coord = context.coordinator] in coord?.exportSelection() }
         context.coordinator.webView = webView
-        model.register(webView: webView)   // sync theme/tweaks once it loads
-
-        let resources = Bundle.main.resourceURL!
-            .appendingPathComponent("WebResources", isDirectory: true)
-        webView.loadFileURL(resources.appendingPathComponent("reader.html"),
-                            allowingReadAccessTo: resources)
+        model.register(webView: webView)
+        let res = Bundle.main.resourceURL!.appendingPathComponent("WebResources", isDirectory: true)
+        webView.loadFileURL(res.appendingPathComponent("reader.html"), allowingReadAccessTo: res)
         return webView
     }
 
@@ -57,6 +51,7 @@ struct MarkdownWebView: NSViewRepresentable {
         private var pendingDoc: Document?
         private var lastText: String?
         private var lastURL: URL?
+        private weak var lastDoc: Document?   // the doc currently rendered (for tab-switch detection)
         var hasSelection = false          // tracked from the renderer (selectionchange)
 
         init(model: AppModel) { self.model = model }
@@ -99,11 +94,13 @@ struct MarkdownWebView: NSViewRepresentable {
 
         private func flush() {
             guard let webView, let doc = pendingDoc else { return }
+            let tabSwitch = lastDoc != nil && doc !== lastDoc      // different tab in the shared webview
             let urlChanged = doc.url != lastURL
-            if doc.text != lastText || urlChanged {
+            if doc.text != lastText || urlChanged || tabSwitch {
                 let scrollArg: String
-                if lastText == nil { scrollArg = "0" }              // first render
-                else if urlChanged { scrollArg = String(doc.restoreScroll) }  // nav / back / tab switch
+                if lastText == nil { scrollArg = "0" }              // first render ever
+                else if tabSwitch { scrollArg = String(doc.savedScroll) }     // restore this doc's position
+                else if urlChanged { scrollArg = String(doc.restoreScroll) }  // in-place nav / back
                 else { scrollArg = "\"preserve\"" }                 // live-reload
                 let bc = doc.breadcrumb.map { "{name:\(jsStringLiteral($0))}" } ?? "null"
                 webView.evaluateJavaScript(
@@ -111,6 +108,7 @@ struct MarkdownWebView: NSViewRepresentable {
                     + "\(jsStringLiteral(doc.docDir)), \(bc), \(scrollArg))")
                 lastText = doc.text
                 lastURL = doc.url
+                lastDoc = doc
             }
             pendingDoc = nil
         }
@@ -125,6 +123,7 @@ struct MarkdownWebView: NSViewRepresentable {
             case "peek": handlePeek(message.body)
             case "outline": handleOutline(message.body)
             case "selchange": hasSelection = (message.body as? Bool) ?? false
+            case "scrollpos": if let y = (message.body as? NSNumber)?.doubleValue { document?.savedScroll = y }
             default: break
             }
         }
@@ -300,7 +299,7 @@ struct MarkdownWebView: NSViewRepresentable {
 }
 
 /// Weak wrapper so the WKUserContentController doesn't retain the Coordinator.
-private final class WeakScriptHandler: NSObject, WKScriptMessageHandler {
+final class WeakScriptHandler: NSObject, WKScriptMessageHandler {
     weak var target: WKScriptMessageHandler?
     init(_ target: WKScriptMessageHandler) { self.target = target }
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
