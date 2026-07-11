@@ -197,7 +197,7 @@ private struct ReadingSection: View {
                 VStack(alignment: .leading, spacing: 9) {
                     Text("Focus intensity").font(.system(size: 13)).foregroundColor(p.text)
                     Segmented(options: [("Subtle", "0.45"), ("Strong", "0.22")],
-                              current: model.tweaks["--focus-dim"] ?? "0.45", palette: p) {
+                              current: model.tweaks["--focus-dim"] ?? "0.30", palette: p) {  // 0.30 = §7.11 default (neither preset)
                         model.setTweak("--focus-dim", $0)
                     }
                 }

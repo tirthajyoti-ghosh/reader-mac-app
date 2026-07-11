@@ -77,7 +77,6 @@
   --fs-h4:       1.0em;
   --fw-normal:   400;
   --fw-semibold: 650;
-  --fw-bold:     700;   /* Bionic word-heads (§8.3.2); available to all bundled faces */
 
   /* ---- §7.3 Reading ergonomics (accessibility controls bind to these) ---- */
   --md-max:          none;    /* THE reading-width cap: full-width by default; the Reading-width tweak sets a rem cap (unified — was split with --measure) */
@@ -259,15 +258,34 @@
   --tc-check:         14px;
 }
 
-/* ===== §7.11 Reading / accessibility (Track A11y — opt-in focus pack) ======
-   Tokens the Reading section's focus modes bind to. Everything defaults to a
-   no-op so the plain reading surface is untouched (Invariant I4). Sepia /
-   high-contrast presets are color-only token blocks in themes.css (they layer
-   over the active theme via [data-reading]). */
+/* ===== §7.11 Accessibility — Reading pack (§8.3.2) ========================
+   Opt-in Focus/A11y pack. Every treatment defaults OFF (Invariant I4) and is
+   fully reversible (remove a class / attribute). Values derive from the
+   contract where possible. Letter/word spacing already live in §7.3. */
 :root {
-  --focus-dim:     0.45;   /* line-focus: opacity of non-current blocks (Strong = 0.22) */
-  --dim-para:      0.6;    /* dim-surrounding: gentler than line-focus                  */
-  --focus-fade:    .18s;   /* dim/undim transition                                       */
+  --focus-dim:     0.30;                /* line-focus: dimmed line opacity        */
+  --focus-lit:     1;                   /* current line / paragraph opacity       */
+  --dim-para:      0.45;                /* dim-surrounding: gentler than focus     */
+  --bionic-weight: var(--fw-semibold);  /* bionic lead-character weight           */
+  --focus-band:    var(--accent-soft);  /* optional wash behind the current line  */
+}
+
+/* ---- Reading presets: sepia / high-contrast ------------------------------
+   Token-override blocks that LAYER over the active theme — they override only
+   the neutral tokens; --accent and the six --syntax-* inherit from the theme
+   (so Nord+sepia keeps Nord's accent on warm paper). Raw values live only in
+   these definition blocks, exactly like themes.css. Apply --reading on the
+   same element as --theme; the :root-qualified selector keeps the preset above
+   any namespaced theme block regardless of file load order. */
+:root[data-reading="sepia"], [data-reading="sepia"] {
+  --bg:#F4ECD8; --surface:#FBF6E7; --code-bg:#EAE0C6;
+  --text:#4A3B2A; --text-secondary:#6B5942; --text-muted:#93826B; --border:#DED2B6;
+  color-scheme: light;
+}
+:root[data-reading="high-contrast"], [data-reading="high-contrast"] {
+  --bg:#000000; --surface:#0B0B0B; --code-bg:#000000;
+  --text:#FFFFFF; --text-secondary:#F2F2F2; --text-muted:#C9C9C9; --border:#FFFFFF;
+  color-scheme: dark;
 }
 
 /* ============================================================================
@@ -1068,16 +1086,25 @@
    (I4). All values come from §7.11 tokens; no hardcoded colors here (presets
    supply the color via [data-reading] token blocks in themes.css).
    ============================================================================ */
-/* Line focus / dim-surrounding: the block at the reading line keeps .current
-   (set by app.js on scroll); the rest fade. Chrome-ish rows never dim. */
-.md.focus-line > *:not(.current):not(.doc-path):not(.breadcrumb):not(.frontmatter) { opacity: var(--focus-dim); }
-.md.dim-para   > *:not(.current):not(.doc-path):not(.breadcrumb):not(.frontmatter) { opacity: var(--dim-para); }
-.md.focus-line > *, .md.dim-para > * { transition: opacity var(--focus-fade); }
-
 /* Bionic: word-heads are wrapped in <b class="bl"> by app.js; inert until the
    .bionic class is on, so toggling is instant + the wrap is fully reversible. */
 .md .bl { font-weight: inherit; }
-.md.bionic .bl { font-weight: var(--fw-bold); }
+.md.bionic .bl { font-weight: var(--bionic-weight); }
+
+/* Line focus — dim every visual line but the one being read (+ optional wash).
+   app.js wraps each visual line in <span class="ln"> and marks the active .current. */
+.md.focus-line .ln { opacity: var(--focus-dim); transition: opacity .18s ease; }
+.md.focus-line .ln.current {
+  opacity: var(--focus-lit);
+  background: var(--focus-band);
+  border-radius: var(--radius-pill);
+  box-decoration-break: clone;
+}
+
+/* Dim surrounding paragraphs — gentler cousin: the current paragraph stays full,
+   the rest dim. (Only <p>, so doc-path / breadcrumb / frontmatter never dim.) */
+.md.dim-para p { opacity: var(--dim-para); transition: opacity .18s ease; }
+.md.dim-para p.current { opacity: var(--focus-lit); }
 
 /* ============================================================================
    FRONTMATTER — YAML metadata block (parsed + stripped by app.js so it never

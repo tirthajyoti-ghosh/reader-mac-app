@@ -643,41 +643,41 @@
     reRenderMermaid();
   };
 
-  /* ---- Track A11y (§8.3.2): opt-in reading/focus modes. Class-gated on #doc
-     (or data-reading on the root) so they're reversible + survive theme swaps;
-     re-applied after each __render. All default OFF (Invariant I4). ---------- */
+  /* ---- Track A11y (§8.3.2): opt-in reading/focus modes. Reversible + re-applied
+     after each __render. Line focus wraps every visual line in <span class="ln">
+     and lights the one at the reading position; dim-para lights the current <p>.
+     All default OFF (Invariant I4). ------------------------------------------- */
 
-  // Line-band focus: the block nearest the reading line stays lit; the rest fade.
-  function currentReadingBlock() {
-    var mid = scroller.getBoundingClientRect().top + scroller.clientHeight * 0.4;
-    var kids = doc.children, best = null, bestDist = Infinity;
-    for (var i = 0; i < kids.length; i++) {
-      var el = kids[i];
-      if (el.classList && (el.classList.contains("doc-path") || el.classList.contains("breadcrumb") || el.classList.contains("frontmatter"))) continue;
-      var r = el.getBoundingClientRect();
-      if (r.height === 0) continue;
+  var lineWrapped = false, bionicWrapped = false, wrapping = false;
+
+  function readingMid() { return scroller.getBoundingClientRect().top + scroller.clientHeight * 0.4; }
+  function nearest(list) {
+    var mid = readingMid(), best = null, bd = Infinity;
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i].getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
       var d = (r.top <= mid && r.bottom >= mid) ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
-      if (d < bestDist) { bestDist = d; best = el; }
+      if (d < bd) { bd = d; best = list[i]; }
     }
     return best;
   }
-  function markCurrentBlock() {
-    if (!doc.classList.contains("focus-line") && !doc.classList.contains("dim-para")) return;
-    var best = currentReadingBlock();
-    var prev = doc.querySelector(":scope > .current");
-    if (prev && prev !== best) prev.classList.remove("current");
-    if (best && !best.classList.contains("current")) best.classList.add("current");
-  }
-  function clearCurrentIfIdle() {
-    if (doc.classList.contains("focus-line") || doc.classList.contains("dim-para")) return;
-    var c = doc.querySelector(":scope > .current");
-    if (c) c.classList.remove("current");
+  function markCurrent() {
+    if (doc.classList.contains("focus-line")) {
+      var bl = nearest(doc.querySelectorAll(".ln")), pl = doc.querySelector(".ln.current");
+      if (pl && pl !== bl) pl.classList.remove("current");
+      if (bl) bl.classList.add("current");
+    }
+    if (doc.classList.contains("dim-para")) {
+      var bp = nearest(doc.querySelectorAll("p")), pp = doc.querySelector("p.current");
+      if (pp && pp !== bp) pp.classList.remove("current");
+      if (bp) bp.classList.add("current");
+    }
   }
   var curScheduled = false;
   function scheduleCurrent() {
-    if (curScheduled) return;
+    if (curScheduled || (!doc.classList.contains("focus-line") && !doc.classList.contains("dim-para"))) return;
     curScheduled = true;
-    requestAnimationFrame(function () { curScheduled = false; markCurrentBlock(); });
+    requestAnimationFrame(function () { curScheduled = false; markCurrent(); });
   }
   scroller.addEventListener("scroll", scheduleCurrent, { passive: true });
 
@@ -730,20 +730,109 @@
     doc.normalize();   // merge the split text nodes back → textContent identical
   }
 
+  // ---- Line focus: wrap each visual line in <span class="ln"> ----
+  // Leaf text blocks only (no nested block children), skipping chrome-ish rows.
+  function lineTargets() {
+    var out = [];
+    doc.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6").forEach(function (el) {
+      if (el.closest(".frontmatter, .doc-path, .breadcrumb")) return;
+      if (el.querySelector("p, ul, ol, div, blockquote, pre, table, img, .mermaid, h1, h2, h3, h4, h5, h6")) return;
+      if (!el.firstChild || !el.textContent.trim()) return;
+      out.push(el);
+    });
+    return out;
+  }
+  function wrapVisualLines(el) {
+    var range = document.createRange();
+    function topAt(node, i) {
+      range.setStart(node, i); range.setEnd(node, i + 1);
+      var rs = range.getClientRects();
+      return rs.length ? Math.round(rs[rs.length - 1].top) : null;
+    }
+    // 1) collect line-start positions (offset 0 = the node begins a new visual line)
+    var starts = [], prevTop = null;
+    var tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) { return n.nodeValue.length ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT; }
+    });
+    var node;
+    while ((node = tw.nextNode())) {
+      var len = node.nodeValue.length, first = topAt(node, 0);
+      if (first === null) continue;
+      if (prevTop === null || first !== prevTop) starts.push({ node: node, offset: 0 });
+      var last = topAt(node, len - 1);
+      if (last !== null && last === first) { prevTop = first; continue; }
+      (function findBreaks(lo, hi) {             // binary-search internal wraps
+        if (hi - lo <= 1) return;
+        var tlo = topAt(node, lo), thi = topAt(node, hi - 1);
+        if (tlo === null || thi === null || tlo === thi) return;
+        var a = lo, b = hi - 1;
+        while (b - a > 1) { var m = (a + b) >> 1, tm = topAt(node, m); if (tm !== null && tm !== tlo) b = m; else a = m; }
+        starts.push({ node: node, offset: b });
+        findBreaks(b, hi);
+      })(0, len);
+      prevTop = last;
+    }
+    if (starts.length <= 1) {                    // single visual line
+      range.selectNodeContents(el);
+      var one = document.createElement("span"); one.className = "ln";
+      one.appendChild(range.extractContents()); el.appendChild(one);
+      return;
+    }
+    // 2) split text nodes at internal offsets so every start is a node boundary
+    var byNode = new Map();
+    starts.forEach(function (s) { if (s.offset > 0) { if (!byNode.has(s.node)) byNode.set(s.node, []); byNode.get(s.node).push(s.offset); } });
+    var startNodes = new Set();
+    byNode.forEach(function (offs, nd) {
+      offs.sort(function (a, b) { return b - a; });           // split tail-first
+      offs.forEach(function (o) { startNodes.add(nd.splitText(o)); });
+    });
+    starts.forEach(function (s) { if (s.offset === 0) startNodes.add(s.node); });
+    // 3) one .ln per segment; extractContents auto-splits any inline ancestor (link/bold)
+    var ordered = [], tw2 = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null), m2;
+    while ((m2 = tw2.nextNode())) if (startNodes.has(m2)) ordered.push(m2);
+    for (var i = 0; i < ordered.length; i++) {
+      var r = document.createRange();
+      r.setStartBefore(ordered[i]);
+      if (i + 1 < ordered.length) r.setEndBefore(ordered[i + 1]); else r.setEnd(el, el.childNodes.length);
+      var span = document.createElement("span"); span.className = "ln";
+      span.appendChild(r.extractContents()); r.insertNode(span);
+    }
+  }
+  function wrapAllLines() { wrapping = true; lineTargets().forEach(wrapVisualLines); wrapping = false; }
+  function unwrapLines() {
+    wrapping = true;
+    doc.querySelectorAll("span.ln").forEach(function (s) {
+      var pa = s.parentNode; while (s.firstChild) pa.insertBefore(s.firstChild, s); pa.removeChild(s);
+    });
+    doc.normalize();
+    wrapping = false;
+  }
+
+  // Rebuild the reading DOM (bionic + line wrap) to match the current mode flags.
+  function syncReadingDom() {
+    clearFind();                                   // don't tangle find marks with the re-wrap
+    if (lineWrapped) { unwrapLines(); lineWrapped = false; }
+    if (bionicWrapped) { bionicUnwrap(); bionicWrapped = false; }
+    if (doc.classList.contains("bionic")) { bionicWrap(); bionicWrapped = true; }
+    if (doc.classList.contains("focus-line")) { wrapAllLines(); lineWrapped = true; }
+    markCurrent();
+  }
+
   window.__setLineFocus = function (on) {
+    if (!!on === doc.classList.contains("focus-line")) return;
     doc.classList.toggle("focus-line", !!on);
-    if (on) markCurrentBlock(); else clearCurrentIfIdle();
+    syncReadingDom();
   };
   window.__setDimParagraphs = function (on) {
+    if (!!on === doc.classList.contains("dim-para")) return;
     doc.classList.toggle("dim-para", !!on);
-    if (on) markCurrentBlock(); else clearCurrentIfIdle();
+    if (on) markCurrent();
+    else { var pp = doc.querySelector("p.current"); if (pp) pp.classList.remove("current"); }
   };
   window.__setBionic = function (on) {
-    on = !!on;
-    if (on === doc.classList.contains("bionic")) return;   // idempotent
-    clearFind();                                           // don't tangle marks with the re-wrap
-    if (on) { doc.classList.add("bionic"); bionicWrap(); }
-    else { doc.classList.remove("bionic"); bionicUnwrap(); }
+    if (!!on === doc.classList.contains("bionic")) return;
+    doc.classList.toggle("bionic", !!on);
+    syncReadingDom();
   };
   window.__applyReadingPreset = function (name) {
     if (name) root.setAttribute("data-reading", name); else root.removeAttribute("data-reading");
@@ -751,13 +840,21 @@
   };
   window.__clearReadingPreset = function () { root.removeAttribute("data-reading"); reRenderMermaid(); };
 
-  // After a fresh render the doc children are rebuilt — the #doc classes, root
-  // data-reading, and style overrides persist, but the Bionic wrap + .current
-  // block must be recreated.
-  function reapplyReadingAfterRender() {
-    if (doc.classList.contains("bionic")) bionicWrap();
-    markCurrentBlock();
+  // Re-wrap visual lines when the column reflows (window resize / font / spacing).
+  var reflowTimer = null;
+  function scheduleReflow() {
+    if (wrapping || !doc.classList.contains("focus-line")) return;
+    if (reflowTimer) clearTimeout(reflowTimer);
+    reflowTimer = setTimeout(function () {
+      reflowTimer = null;
+      if (!doc.classList.contains("focus-line")) return;
+      unwrapLines(); lineWrapped = false; wrapAllLines(); lineWrapped = true; markCurrent();
+    }, 150);
   }
+  if (window.ResizeObserver) { new ResizeObserver(scheduleReflow).observe(doc); }
+
+  // After a fresh render the doc children are rebuilt — reapply bionic + line wrap.
+  function reapplyReadingAfterRender() { syncReadingDom(); }
 
   /* ---- find: highlight every match, cycle the current one ------------------
      Matches are found over the CONCATENATED text of the doc, not per text node,
