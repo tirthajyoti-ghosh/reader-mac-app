@@ -33,6 +33,7 @@ struct ExportDialog: View {
                         .frame(width: cardW * s, height: cardH * s)
                         .frame(maxWidth: .infinity)
                         .padding(24)
+                        .allowsHitTesting(false)   // let the ScrollView get the wheel; preview is non-interactive
                 }
             }
             .frame(height: 384)

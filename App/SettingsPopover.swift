@@ -327,7 +327,7 @@ struct Segmented: View {
                 Button { onSelect(opt.1) } label: {
                     Text(opt.0).font(.system(size: 12, weight: .medium)).lineLimit(1)
                         .foregroundColor(on ? palette.text : palette.text2)
-                        .frame(maxWidth: .infinity).padding(.vertical, 5)
+                        .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 12)
                         .background(RoundedRectangle(cornerRadius: 4).fill(on ? palette.surface : Color.clear))
                         .contentShape(Rectangle())   // whole segment is clickable, not just the text
                 }.buttonStyle(.plain)

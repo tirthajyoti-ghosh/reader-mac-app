@@ -13,7 +13,7 @@ struct ExportWebView: NSViewRepresentable {
     func makeCoordinator() -> Coord { Coord(model: model) }
 
     func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
+        let config = WebEnv.makeConfig()
         let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: 1200, height: 800), configuration: config)
         wv.navigationDelegate = context.coordinator
         wv.setValue(false, forKey: "drawsBackground")

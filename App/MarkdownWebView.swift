@@ -17,7 +17,7 @@ struct MarkdownWebView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
 
     func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
+        let config = WebEnv.makeConfig()   // shared process pool → warm after the first
         let handler = WeakScriptHandler(context.coordinator)
         config.userContentController.add(handler, name: "revealFile")
         config.userContentController.add(handler, name: "link")

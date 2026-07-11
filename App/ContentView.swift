@@ -51,6 +51,7 @@ struct ContentView: View {
                                 SettingsPopover()
                                     .padding(.top, 6).padding(.trailing, 10)
                             }
+                            .arrowCursor()
                             .transition(.opacity)
                         }
                     }
@@ -78,6 +79,7 @@ struct ContentView: View {
                         .onTapGesture { model.closeExport() }
                     ExportDialog()
                 }
+                .arrowCursor()
                 .transition(.opacity)
             }
         }

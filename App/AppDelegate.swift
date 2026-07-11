@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // built its window, so relying only on `application(_:open:)` can leave
         // the window created-but-unraised. Surfacing here (with retry) closes that.
         surfaceWindow()
+        WebEnv.warm()   // spin up the WebContent process now, so the first open is warm
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
