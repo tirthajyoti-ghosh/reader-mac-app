@@ -92,8 +92,10 @@ private struct Kbd: View {
     var body: some View {
         Text(text)
             .font(.system(size: 12, design: .monospaced))
+            .kerning(2)                     // space the ⌘ and O apart (they render cramped otherwise)
             .foregroundColor(palette.text2)
-            .padding(.horizontal, 6)
+            .padding(.leading, 7)           // kerning adds trailing space → nudge leading to re-center
+            .padding(.trailing, 5)
             .padding(.vertical, 1)
             .background(RoundedRectangle(cornerRadius: 4).fill(palette.surface))
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(palette.border, lineWidth: 1))
