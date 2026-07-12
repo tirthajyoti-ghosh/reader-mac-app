@@ -116,7 +116,11 @@ final class Document: ObservableObject, Identifiable {
         if showLoading { isLoading = true }
         let t0 = Perf.now()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let rt0 = Perf.now()
             let fresh = Document.read(target)
+            // Logged from the read's OWN thread → main=false proves the read is off
+            // the main thread (the whole point of the fix).
+            Perf.done("read.bg", since: rt0, "main=\(Thread.isMainThread) \(fresh.utf8.count)B \(target.lastPathComponent)")
             DispatchQueue.main.async {
                 guard let self, token == self.loadToken else { return }   // superseded → drop
                 Perf.done("read.done", since: t0, "\(fresh.utf8.count)B \(target.lastPathComponent)")
