@@ -78,6 +78,29 @@ xcodebuild -project Reader.xcodeproj -scheme Reader -configuration Debug build
 
 The build ad-hoc-signs locally (no Apple Developer team required).
 
+## Staging ↔ production (dev without disturbing your installed app)
+
+Development and testing run against a separate **staging** build so they never touch
+the production `Reader.app` you're actually using. Staging is a release-optimized build
+with its own identity — bundle id `com.tirthajyoti.Reader.staging`, name **"Reader
+Canary"**, a distinct gold icon — installed to `~/Applications`. Because the bundle id
+differs, macOS gives it its **own** preferences, recent-files, TCC permissions, and Quick
+Look registration; it is also marked `Alternate` for `.md` so it never steals the default
+handler from production.
+
+```sh
+# everyday loop: build Staging → install to ~/Applications → launch "Reader Canary"
+scripts/dev.sh                    # optionally: scripts/dev.sh path/to/file.md
+READER_TESTING=1 scripts/dev.sh   # launch without stealing window focus (for automated runs)
+
+# when a change is confirmed on staging, promote it to production (/Applications/Reader.app)
+scripts/promote.sh                # prompts before replacing production
+```
+
+Regenerate the staging icon with `scripts/make-icon.sh staging` (production:
+`scripts/make-icon.sh`). Builds go to `build.noindex/` so Spotlight doesn't index them
+as duplicate apps.
+
 ## Make Reader the default Markdown app
 
 - **Finder:** right-click any `.md` → *Get Info* → *Open with* → **Reader** →

@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# Regenerate Reader.icns from the source SVG (design/icon/icon-dark.svg).
+# Regenerate the app .icns files from the source SVGs.
+#   scripts/make-icon.sh            → Reader.icns          (production, design/icon/icon-dark.svg)
+#   scripts/make-icon.sh staging    → Reader-Staging.icns  (staging,    design/icon/icon-staging.svg)
 # Requires rsvg-convert (`brew install librsvg`) + iconutil (built in).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/design/icon/icon-dark.svg"
-SET="$ROOT/scripts/.iconset-tmp/Reader.iconset"
+
+case "${1:-production}" in
+  staging) SRC="$ROOT/design/icon/icon-staging.svg"; OUT="$ROOT/Reader-Staging.icns"; NAME="Reader-Staging" ;;
+  *)       SRC="$ROOT/design/icon/icon-dark.svg";    OUT="$ROOT/Reader.icns";         NAME="Reader" ;;
+esac
+
+SET="$ROOT/scripts/.iconset-tmp/$NAME.iconset"
 rm -rf "$ROOT/scripts/.iconset-tmp"; mkdir -p "$SET"
 
 render() { rsvg-convert -w "$1" -h "$1" "$SRC" -o "$SET/$2"; }
@@ -20,6 +27,6 @@ render 512  icon_256x256@2x.png
 render 512  icon_512x512.png
 render 1024 icon_512x512@2x.png
 
-iconutil -c icns "$SET" -o "$ROOT/Reader.icns"
+iconutil -c icns "$SET" -o "$OUT"
 rm -rf "$ROOT/scripts/.iconset-tmp"
-echo "wrote $ROOT/Reader.icns ($(stat -f%z "$ROOT/Reader.icns") bytes)"
+echo "wrote $OUT ($(stat -f%z "$OUT") bytes)"

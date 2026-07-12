@@ -1,0 +1,12 @@
+<svg width="1024" height="1024" viewBox="0 0 132 132" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Reader Canary (staging) app icon">
+  <!-- Staging / Canary variant: gold-tinted background + canary accent + corner badge
+       so the staging build is unmistakable next to production in the Dock / ⌘-Tab. -->
+  <rect width="132" height="132" rx="30" fill="#2A2205"></rect>
+  <rect x="1" y="1" width="130" height="130" rx="29" fill="none" stroke="#FFFFFF" stroke-opacity="0.08"></rect>
+  <rect x="33" y="41" width="66" height="5" rx="2.5" fill="#F2C744"></rect>
+  <rect x="33" y="59" width="66" height="6.5" rx="3.25" fill="#EDEBE4"></rect>
+  <rect x="33" y="73" width="66" height="6.5" rx="3.25" fill="#EDEBE4"></rect>
+  <rect x="33" y="87" width="44" height="6.5" rx="3.25" fill="#EDEBE4"></rect>
+  <!-- canary badge, bottom-right -->
+  <circle cx="103" cy="103" r="17" fill="#F2C744" stroke="#2A2205" stroke-width="4"></circle>
+</svg>

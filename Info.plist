@@ -13,9 +13,9 @@
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
     <key>CFBundleDisplayName</key>
-    <string>Reader</string>
+    <string>$(PRODUCT_NAME)</string>
     <key>CFBundleIconFile</key>
-    <string>Reader</string>
+    <string>$(APP_ICON_NAME)</string>
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
@@ -71,7 +71,7 @@
             <key>CFBundleTypeRole</key>
             <string>Viewer</string>
             <key>LSHandlerRank</key>
-            <string>Default</string>
+            <string>$(MD_HANDLER_RANK)</string>
             <key>LSItemContentTypes</key>
             <array>
                 <string>net.daringfireball.markdown</string>

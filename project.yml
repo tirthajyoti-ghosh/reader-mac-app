@@ -7,6 +7,15 @@ options:
   createIntermediateGroups: true
   generateEmptyDirectories: true
 
+# Build configurations. Staging is a release-optimized build with a *separate app
+# identity* (bundle id / name / icon) so it installs and runs alongside production
+# without touching its prefs, TCC grants, or Launch Services default-handler slot.
+# Debug/Release/Staging all exist for every target.
+configs:
+  Debug: debug
+  Release: release
+  Staging: release
+
 settings:
   base:
     MARKETING_VERSION: "1.0"
@@ -27,14 +36,25 @@ targets:
       - path: App
       - path: WebResources
         type: folder            # folder reference → ./vendor and ./fonts survive intact
-      - path: Reader.icns       # app icon (regenerate with scripts/make-icon.sh)
+      - path: Reader.icns          # production icon (scripts/make-icon.sh)
+      - path: Reader-Staging.icns  # staging "Canary" icon (scripts/make-icon.sh staging)
     settings:
       base:
         PRODUCT_NAME: Reader
         PRODUCT_BUNDLE_IDENTIFIER: com.tirthajyoti.Reader
+        APP_ICON_NAME: Reader          # → CFBundleIconFile ($(APP_ICON_NAME))
+        MD_HANDLER_RANK: Default       # → markdown LSHandlerRank (prod is the default .md handler)
         INFOPLIST_FILE: Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         CODE_SIGN_ENTITLEMENTS: Reader.entitlements
+      configs:
+        # Staging identity: separate bundle id / name / icon; Alternate handler rank
+        # so staging never auto-steals the default .md association from production.
+        Staging:
+          PRODUCT_NAME: "Reader Canary"
+          PRODUCT_BUNDLE_IDENTIFIER: com.tirthajyoti.Reader.staging
+          APP_ICON_NAME: Reader-Staging
+          MD_HANDLER_RANK: Alternate
     dependencies:
       - target: QuickLookExtension
         embed: true
@@ -53,6 +73,11 @@ targets:
         INFOPLIST_FILE: QuickLook/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         CODE_SIGN_ENTITLEMENTS: QuickLook/QuickLook.entitlements
+      configs:
+        # Staging appex id is a child of the staging app id → its own Quick Look
+        # registration, no Launch Services collision with production's appex.
+        Staging:
+          PRODUCT_BUNDLE_IDENTIFIER: com.tirthajyoti.Reader.staging.QuickLook
 
   # Host-less logic tests for the pure model code (theming parse, custom-theme
   # security, palette/colour, relative-time). Compiles the self-contained source
@@ -71,6 +96,18 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
 
 schemes:
+  # ⌘R / Profile run the Staging identity (Reader Canary) so day-to-day dev never
+  # touches production. `scripts/promote.sh` builds -configuration Release for prod.
+  Reader:
+    build:
+      targets:
+        Reader: all
+    run:
+      config: Staging
+    profile:
+      config: Staging
+    archive:
+      config: Release
   ReaderModelTests:
     build:
       targets:
