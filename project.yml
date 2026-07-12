@@ -95,6 +95,21 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.tirthajyoti.Reader.ModelTests
         GENERATE_INFOPLIST_FILE: "YES"
 
+  # Real-WebKit-engine render + export-snapshot harness. Loads reader.html into a
+  # WKWebView inside an OFF-SCREEN window (never key/visible, never NSApp.activate),
+  # so it's fully headless — no window, no focus theft. Covers the same engine Quick
+  # Look/the app use, plus the takeSnapshot export path Chromium can't.
+  ReaderRenderTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: tests/SwiftRender
+    settings:
+      base:
+        PRODUCT_NAME: ReaderRenderTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.tirthajyoti.Reader.RenderTests
+        GENERATE_INFOPLIST_FILE: "YES"
+
 schemes:
   # ⌘R / Profile run the Staging identity (Reader Canary) so day-to-day dev never
   # touches production. `scripts/promote.sh` builds -configuration Release for prod.
@@ -115,3 +130,10 @@ schemes:
     test:
       targets:
         - ReaderModelTests
+  ReaderRenderTests:
+    build:
+      targets:
+        ReaderRenderTests: all
+    test:
+      targets:
+        - ReaderRenderTests
