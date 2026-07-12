@@ -14,11 +14,11 @@ enum Perf {
     @inline(__always) static func now() -> CFAbsoluteTime { CFAbsoluteTimeGetCurrent() }
 
     static func event(_ name: String, _ detail: String = "") {
-        log.info("\(name, privacy: .public) \(detail, privacy: .public)")
+        log.notice("\(name, privacy: .public) \(detail, privacy: .public)")
     }
 
     static func done(_ name: String, since t0: CFAbsoluteTime, _ detail: String = "") {
         let msStr = String(format: "%.1f", (CFAbsoluteTimeGetCurrent() - t0) * 1000)
-        log.info("\(name, privacy: .public) \(msStr, privacy: .public)ms \(detail, privacy: .public)")
+        log.notice("\(name, privacy: .public) \(msStr, privacy: .public)ms \(detail, privacy: .public)")
     }
 }

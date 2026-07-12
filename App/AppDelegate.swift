@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Perf.event("app.launch", Self.isTestingRun ? "(testing)" : "")
         // Make sure the window is shown on launch. A cold launch triggered by a
         // file-open can deliver the open event before the `Window` scene has
         // built its window, so relying only on `application(_:open:)` can leave
@@ -68,9 +69,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.collectionBehavior.insert(.moveToActiveSpace)
             if win.isMiniaturized { win.deminiaturize(nil) }
             if testing {
-                // Show the window (so the webview isn't occluded → no render throttling
-                // that would skew measurements) but do NOT make it key / steal focus.
-                win.orderFront(nil)
+                // Automated/measurement launch: give the window a backing (so it
+                // composites) but tuck it BEHIND the user's work — never key, never
+                // activated, never ordered in front. No focus theft, no interruption.
+                win.orderBack(nil)
             } else {
                 win.makeKeyAndOrderFront(nil)
                 win.orderFrontRegardless()   // show even if the app isn't yet active
