@@ -74,6 +74,7 @@ struct ReadingArea: View {
                 HStack(spacing: 0) {
                     ZStack(alignment: .topTrailing) {
                         MarkdownWebView(document: document, model: model, isSelected: isSelected)
+                        LoadingVeil(isLoading: document.isLoading, palette: p)
                         if isSelected && model.findVisible { FindBar() }
                     }
                     .frame(maxWidth: .infinity)
@@ -114,6 +115,31 @@ struct ReadingArea: View {
     private func close() { document.surface = nil }
     private func promoteToSplit() {
         if var s = document.surface { s.mode = .split; document.surface = s }
+    }
+}
+
+/// An opaque veil shown while a document reads its file off the main thread. Only
+/// appears if the read is slow enough to notice (~120ms) so fast/warm opens don't
+/// flash a spinner; it's opaque (matches `--bg`) so no stale/blank content shows.
+struct LoadingVeil: View {
+    let isLoading: Bool
+    let palette: Palette
+    @State private var visible = false
+
+    var body: some View {
+        ZStack {
+            if visible {
+                palette.bg
+                ProgressView().controlSize(.small)
+            }
+        }
+        .allowsHitTesting(visible)
+        .animation(.easeInOut(duration: 0.15), value: visible)
+        .task(id: isLoading) {
+            guard isLoading else { visible = false; return }
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            if !Task.isCancelled { visible = true }
+        }
     }
 }
 

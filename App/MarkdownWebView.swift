@@ -94,6 +94,10 @@ struct MarkdownWebView: NSViewRepresentable {
 
         private func flush() {
             guard let webView, let doc = pendingDoc else { return }
+            // A fresh open/navigation reads text off the main thread; don't paint
+            // (blank or stale) while that's in flight — the loading veil covers it,
+            // and we render once the read publishes `text` (which re-triggers flush).
+            if doc.isLoading { pendingDoc = nil; return }
             let tabSwitch = lastDoc != nil && doc !== lastDoc      // different tab in the shared webview
             let urlChanged = doc.url != lastURL
             if doc.text != lastText || urlChanged || tabSwitch {
@@ -103,9 +107,11 @@ struct MarkdownWebView: NSViewRepresentable {
                 else if urlChanged { scrollArg = String(doc.restoreScroll) }  // in-place nav / back
                 else { scrollArg = "\"preserve\"" }                 // live-reload
                 let bc = doc.breadcrumb.map { "{name:\(jsStringLiteral($0))}" } ?? "null"
+                let t0 = Perf.now()
                 webView.evaluateJavaScript(
                     "window.__render(\(jsStringLiteral(doc.text)), \(jsStringLiteral(doc.displayPath)), "
-                    + "\(jsStringLiteral(doc.docDir)), \(bc), \(scrollArg))")
+                    + "\(jsStringLiteral(doc.docDir)), \(bc), \(scrollArg))"
+                ) { _, _ in Perf.done("render.jsdone", since: t0, doc.title) }
                 lastText = doc.text
                 lastURL = doc.url
                 lastDoc = doc
@@ -193,10 +199,15 @@ struct MarkdownWebView: NSViewRepresentable {
             let kindStr = d["kind"] as? String ?? "external"
             if kindStr == "internal" {
                 guard let fileURL = fileURL(fromTarget: href) else { return }
-                let text = Document.read(fileURL)
-                sendPeek(id, ["href": href, "kind": "internal",
-                              "domain": Document.displayPath(for: fileURL),
-                              "snippet": snippet(of: text)])
+                // Read off the main thread — a hover preview must never hang the UI.
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    let text = Document.read(fileURL)
+                    DispatchQueue.main.async {
+                        self?.sendPeek(id, ["href": href, "kind": "internal",
+                                            "domain": Document.displayPath(for: fileURL),
+                                            "snippet": self?.snippet(of: text) ?? ""])
+                    }
+                }
             } else if let url = URL(string: href) {
                 MetadataFetcher.shared.fetch(url) { [weak self] meta in
                     self?.sendPeek(id, meta.peekDictionary(href: href))

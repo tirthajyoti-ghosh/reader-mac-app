@@ -7,6 +7,15 @@ import AppKit
 /// window forward, not just flip the menu bar to "Reader" with nothing on screen.
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
+    /// True when the app is launched by the test/measurement harness (via the
+    /// READER_TESTING env var, or an XCTest host). In this mode we never call
+    /// `NSApp.activate(ignoringOtherApps:)` / `orderFrontRegardless()` — so a build
+    /// under test can't yank focus away from whatever the user is doing elsewhere.
+    static let isTestingRun: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        return env["READER_TESTING"] == "1" || env["XCTestConfigurationFilePath"] != nil
+    }()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Make sure the window is shown on launch. A cold launch triggered by a
         // file-open can deliver the open event before the `Window` scene has
@@ -47,7 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///   • not created yet (cold launch — the open event can beat the `Window`
     ///     scene's window creation) → retry until it exists, then raise.
     private func surfaceWindow(attempt: Int = 0) {
-        NSApp.activate(ignoringOtherApps: true)
+        let testing = Self.isTestingRun
+        if !testing { NSApp.activate(ignoringOtherApps: true) }
         // Recreate the window if it was closed. No-op (just brings it forward)
         // when it already exists, since this is a single `Window` scene.
         WindowOpener.shared.reopen?()
@@ -57,8 +67,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ?? NSApp.windows.first(where: { $0.canBecomeMain }) {
             win.collectionBehavior.insert(.moveToActiveSpace)
             if win.isMiniaturized { win.deminiaturize(nil) }
-            win.makeKeyAndOrderFront(nil)
-            win.orderFrontRegardless()   // show even if the app isn't yet active
+            if testing {
+                // Show the window (so the webview isn't occluded → no render throttling
+                // that would skew measurements) but do NOT make it key / steal focus.
+                win.orderFront(nil)
+            } else {
+                win.makeKeyAndOrderFront(nil)
+                win.orderFrontRegardless()   // show even if the app isn't yet active
+            }
         } else if attempt < 30 {
             // Window not up yet (cold launch). Poll until it appears (~4.5s cap).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
