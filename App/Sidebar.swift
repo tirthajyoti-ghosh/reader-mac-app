@@ -9,7 +9,7 @@ struct Sidebar: View {
             // Reserve the traffic-light strip (window uses a hidden title bar).
             Color.clear.frame(height: 28)
 
-            // Folder header
+            // Folder header (unchanged) — folder name + open/pick/refresh actions.
             HStack(spacing: 4) {
                 Text(model.sidebarFolderName.uppercased())
                     .font(.system(size: 11, weight: .bold))
@@ -25,32 +25,11 @@ struct Sidebar: View {
             .padding(.vertical, 10)
             .overlay(p.border.frame(height: 1), alignment: .bottom)
 
-            // File list
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    let recents = model.recentFiles
-                    if !recents.isEmpty {
-                        SectionLabel(text: "Recent", palette: p)
-                        // index-based id: a recent file may also be in the folder list
-                        // below, and a duplicate URL id in one LazyVStack blanks a row.
-                        ForEach(Array(recents.enumerated()), id: \.offset) { _, url in
-                            FileRow(item: fileItem(url), selected: isSelectedURL(url), palette: p)
-                                .onTapGesture { model.open(url) }
-                        }
-                        Rectangle().fill(p.border)
-                            .frame(height: 1)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
-                    }
-                    ForEach(model.sidebarFiles) { item in
-                        FileRow(item: item, selected: isSelectedURL(item.url), palette: p)
-                            .onTapGesture { model.open(item.url) }
-                    }
-                }
-                .padding(.vertical, 8)
-            }
+            // The nested file tree (Track F) — filter + Recent + Files hierarchy.
+            SidebarTree(tree: model.tree, palette: p)
+                .frame(maxHeight: .infinity)
 
-            // Footer
+            // Footer (unchanged).
             HStack(spacing: 6) {
                 Image(systemName: "eye")
                     .font(.system(size: 11))
@@ -69,17 +48,6 @@ struct Sidebar: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(p.surface)
     }
-
-    private func fileItem(_ url: URL) -> FileItem {
-        let m = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-        return FileItem(url: url, modified: m)
-    }
-
-    private func isSelectedURL(_ url: URL) -> Bool {
-        guard let s = model.selectedDocument?.url else { return false }
-        return s.resolvingSymlinksInPath().standardizedFileURL
-            == url.resolvingSymlinksInPath().standardizedFileURL
-    }
 }
 
 struct SectionLabel: View {
@@ -95,38 +63,6 @@ struct SectionLabel: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 3)
-    }
-}
-
-private struct FileRow: View {
-    let item: FileItem
-    let selected: Bool
-    let palette: Palette
-    @State private var hover = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(item.name)
-                .font(.system(size: 13, weight: selected ? .semibold : .regular))
-                .foregroundColor(palette.text)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 6)
-            Text(item.relative)
-                .font(.system(size: 12))
-                .foregroundColor(palette.muted)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(selected ? palette.accentSoft : (hover ? palette.bg : Color.clear))
-        .overlay(
-            Rectangle()
-                .fill(selected ? palette.accent : Color.clear)
-                .frame(width: 2),
-            alignment: .leading
-        )
-        .contentShape(Rectangle())
-        .onHover { hover = $0 }
     }
 }
 

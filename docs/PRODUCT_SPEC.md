@@ -4,12 +4,12 @@
 
 | Field | Value |
 |---|---|
-| Document status | **v1.3 — signed off** |
+| Document status | **v1.4 — signed off** |
 | Date | 2026-06-29 |
 | Owner | Tirtha |
 | Platform | macOS 14+ (Apple Silicon + Intel) |
 | License / model | Open source, free |
-| Revision | v1.3 (2026-07-11) — Layer 3 shipped: Track T theming (§8.3.1) + Track A11y focus pack (§8.3.2, reconciled to Design) + Track S image export (§8.3.3, **image-only**; shareable link deferred to 1.x). Token Contract extended: §7.10 (controls), §7.11 (reading/a11y), §7.12 (export card); reading-width cap unified onto `--md-max` (`--measure` retired). v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.2a (2026-06-30) — reading layout = full-width panel with responsive side padding (`--reading-pad-x`). v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
+| Revision | v1.4 (2026-07-18) — Track F: §8.1.3 Sidebar amended from a flat single-level list to a real **file tree** (lazy enumeration, horizontal scroll with full-content-width highlight, keyboard nav, filter, reveal-on-open, tree-aware FSEvents watching, per-root persistence); Token Contract extended §7.13 (file tree). A deliberate 1.0 scope addition prompted by nested watched folders (§12). v1.3 (2026-07-11) — Layer 3 shipped: Track T theming (§8.3.1) + Track A11y focus pack (§8.3.2, reconciled to Design) + Track S image export (§8.3.3, **image-only**; shareable link deferred to 1.x). Token Contract extended: §7.10 (controls), §7.11 (reading/a11y), §7.12 (export card); reading-width cap unified onto `--md-max` (`--measure` retired). v1.2 — §7.4–7.9 grouping reconciled to the shipped `design-tokens.css`; `--shadow-lg` adopts the implemented value. v1.2a (2026-06-30) — reading layout = full-width panel with responsive side padding (`--reading-pad-x`). v1.1 — Token Contract extended (§7.4–7.9); link-color resolved (clay) |
 | Supersedes | All prior ad-hoc decisions in design/build threads |
 
 ---
@@ -266,8 +266,17 @@ Canonical layout tokens (the implementation also defines finer component tokens 
 **8.1.2 Document model & tabs** — open files; multiple open docs as selectable, closable tabs.
 - Acceptance: [ ] Tabs open/close/switch; closing a tab returns focus correctly; per-tab state isolated.
 
-**8.1.3 Sidebar** — lists `.md/.markdown/.txt` in a watched folder (default `~/.claude/plans`); folder-name header, folder picker (NSOpenPanel), refresh; click → open in tab.
-- Acceptance: [ ] Lists and opens files; folder picker changes the watched folder; empty folder shows an empty state.
+**8.1.3 Sidebar — file tree (Track F, §7.13).** A real folder/file **hierarchy** of the watched folder (default `~/.claude/plans`), not a flat top-level list (files inside subfolders were previously invisible — a correctness fix). Native SwiftUI chrome; VSCode's explorer *minus* the complexity (no git decorations, no drag-drop, no colorful icons; calm — I4). Keeps the folder-name header (name + picker + refresh) and the "Watching …" footer.
+- **Lazy enumeration** — a folder's children are read only when it's shown/expanded, off the main thread, cached; never walks the whole tree up front. Folders first, then files, alphabetically (`localizedStandardCompare`); includes `.md/.markdown/.txt` + subfolders; excludes dotfiles, `node_modules`, `.git`, package bundles.
+- **Hide-empty** via a shallow one-level peek (no deep scan); a folder that expands to nothing shows a quiet "empty" row.
+- **Horizontal scroll** — names never truncate; the tree scrolls both axes and the hover/selected background spans the **full content width** (not the viewport), so a deep selected row reads as one continuous band when scrolled right.
+- **Keyboard nav** — ↑/↓ move, → expand/descend, ← collapse/ascend, Return opens, type-ahead.
+- **Filter** — narrows the tree, auto-expands to matches (async, cancellable), marks matched substrings, restores prior expansion when cleared; "No files match" state.
+- **Recent** — a small collapsible section above the tree, capped, timestamps only there (never on tree rows).
+- **Reveal-on-open** — opening a file from anywhere (⌘O, internal link, tab switch, Finder) expands its ancestors, selects its row, and scrolls it into view.
+- **Tree-aware watching** — a single recursive `FSEventStream` on the watched root (coalesced) refreshes changed **expanded** folders without collapsing the tree or losing scroll (replaces the flat kqueue-on-root; see §12).
+- **Persistence** — expanded folders + scroll persist across relaunch, scoped per watched folder.
+- Acceptance: [ ] Nested folders render with indent guides several levels deep; expand/collapse persists. [ ] Files inside subfolders are visible + openable. [ ] Long names don't truncate; hover/selected band spans full content width at any scroll offset. [ ] Keyboard nav works. [ ] Filter narrows + auto-expands + clears cleanly. [ ] Opening a file anywhere reveals + selects it. [ ] Changes inside expanded subfolders refresh without collapsing or losing scroll. [ ] A large folder stays responsive.
 
 **8.1.4 Default `.md` handler** — register via imported `net.daringfireball.markdown` UTI (extensions `md/markdown/mdown/mkd`); markdown = LSHandlerRank Default, plain-text = Alternate, role Viewer; catch opens via `application(_:open:)`.
 - Acceptance: [ ] Double-clicking a `.md` in Finder opens it rendered in Reader.
@@ -395,6 +404,7 @@ Positioning at 1.0: *"A calm, private place to read what AI gives you — and it
 - **Link color default = clay (`--accent`)** (v1.1); blue retained as an inactive `--link-blue` alternate token, swappable without other edits.
 - **Token Contract extended (v1.1, §7.4–7.9)** and **grouping reconciled to the shipped `design-tokens.css` (v1.2)**: extended radii, spacing scale, layout & dimensions, chrome/code/dense type (incl. `--fs-dense` = 16px for tables/callout bodies), elevation & scrim, and semantic/derived (derived accents + callout mapping). No visual value lives outside §7.
 - **Reading layout (v1.2a, §7.3):** the reading column is a **full-width panel with responsive side padding** (`--reading-pad-x` = `clamp(--sp-10, 7vw, 160px)`), not a fixed centered column. `--measure` (46rem) is retained as the **optional** capped-width control the accessibility "reading width" feature (§8.3.2) applies — it is not applied by default. (Restores the agreed reading-ergonomics layout that the A2 token ingest had reverted.)
+- **File tree (v1.4, §8.1.3 · Track F):** the sidebar became a real folder/file **hierarchy** (Token Contract extended §7.13). A **deliberate 1.0 scope addition**, prompted by nested watched folders — the flat single-level list left every file inside a subfolder invisible and unopenable, so this is a correctness fix, not new polish. **Watching switched from a single kqueue on the root to a recursive `FSEventStream`** on the root (chosen over one kqueue FD per expanded folder): a single coalesced stream fits a tree, avoids file-descriptor-per-folder exhaustion, and refreshes only the changed folders. Timestamps live **only** in the Recent section (a right-aligned time on a tree row collides with horizontal scroll). The tree is native SwiftUI mirroring §7.13, consistent with the outline panel / settings popover.
 
 **Open**
 - [ ] Final product **name** (Reader vs **Margin** vs other).

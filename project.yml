@@ -89,6 +89,7 @@ targets:
       - path: tests/Swift
       - path: App/Theming.swift
       - path: App/Theme.swift
+      - path: App/FileTreeCore.swift
     settings:
       base:
         PRODUCT_NAME: ReaderModelTests

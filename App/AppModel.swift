@@ -46,7 +46,8 @@ final class AppModel: ObservableObject {
     // Sidebar
     @Published var sidebarVisible = true
     @Published var sidebarFolder: URL
-    @Published var sidebarFiles: [FileItem] = []
+    /// The nested file tree (Track F, §8.1.3) — replaces the old flat single-level list.
+    let tree = TreeStore()
 
     // Recently opened (persisted across launches; may point outside the watched folder)
     @Published var recents: [URL] = []
@@ -70,8 +71,6 @@ final class AppModel: ObservableObject {
 
     /// The WKWebView of the front document — set by MarkdownWebView so find can drive it.
     weak var activeWebView: WKWebView?
-
-    private var folderWatcher: FileWatcher?
 
     var selectedDocument: Document? { documents.first { $0.id == selectedID } }
     /// Blank doc that keeps the single reading webview mounted before any file opens.
@@ -103,8 +102,7 @@ final class AppModel: ObservableObject {
         self.exportPadding = UserDefaults.standard.string(forKey: "exportPadding") ?? "comfortable"
         self.exportWidth = UserDefaults.standard.string(forKey: "exportWidth") ?? "social"
         self.exportShadow = (UserDefaults.standard.object(forKey: "exportShadow") as? Bool) ?? true
-        reloadSidebar()
-        watchFolder()
+        tree.setRoot(sidebarFolder)
         updatePalette()
     }
 
@@ -124,6 +122,7 @@ final class AppModel: ObservableObject {
             documents.append(doc)
             selectedID = doc.id
         }
+        tree.reveal(url)                       // select + scroll the row into view
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -427,25 +426,9 @@ final class AppModel: ObservableObject {
         return p.hasPrefix(home) ? "~" + p.dropFirst(home.count) : p
     }
 
-    func reloadSidebar() {
-        let exts: Set<String> = ["md", "markdown", "txt"]
-        let keys: [URLResourceKey] = [.contentModificationDateKey, .isDirectoryKey]
-        let urls = (try? FileManager.default.contentsOfDirectory(
-            at: sidebarFolder,
-            includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles]
-        )) ?? []
-
-        var items: [FileItem] = []
-        for u in urls {
-            let vals = try? u.resourceValues(forKeys: Set(keys))
-            if vals?.isDirectory == true { continue }
-            guard exts.contains(u.pathExtension.lowercased()) else { continue }
-            items.append(FileItem(url: u, modified: vals?.contentModificationDate ?? .distantPast))
-        }
-        items.sort { $0.modified > $1.modified }
-        sidebarFiles = items
-    }
+    /// Refresh button / ⌘R → re-read the visible tree (the tree keeps its own
+    /// recursive FSEvents watcher for live changes).
+    func reloadSidebar() { tree.refresh() }
 
     func pickFolder() {
         let panel = NSOpenPanel()
@@ -456,17 +439,7 @@ final class AppModel: ObservableObject {
         if panel.runModal() == .OK, let url = panel.url {
             sidebarFolder = url
             UserDefaults.standard.set(url.path, forKey: "sidebarFolder")
-            reloadSidebar()
-            watchFolder()
-        }
-    }
-
-    private func watchFolder() {
-        folderWatcher = nil
-        if FileManager.default.fileExists(atPath: sidebarFolder.path) {
-            folderWatcher = FileWatcher(url: sidebarFolder) { [weak self] in
-                self?.reloadSidebar()
-            }
+            tree.setRoot(url)
         }
     }
 
